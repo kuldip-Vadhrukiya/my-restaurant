@@ -1,0 +1,288 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Staff & HR Management 👥</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Manage employees, attendance, roles, and login access.</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="openAdvanceModal()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-hand-holding-dollar"></i> Give Advance
+            </button>
+            <button onclick="openStaffModal()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-800 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus"></i> Add New Staff
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-users"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Staff</p>
+                <h3 class="text-xl font-black text-slate-800" id="stat-total">0</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Payroll</p>
+                <h3 class="text-xl font-black text-purple-700" id="stat-payroll">₹0</h3>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-directory" class="tab-content fade-in mt-4">
+        <div class="bg-white p-4 rounded-t-2xl border border-slate-200 border-b-0 flex justify-between items-center">
+            <div class="relative w-full md:w-80">
+                <i class="fa-solid fa-search absolute left-4 top-3.5 text-slate-400"></i>
+                <input type="text" id="searchStaff" onkeyup="renderStaffList()" placeholder="Search employee..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-b-2xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-200">
+                            <th class="p-4 pl-6">Profile & ID</th>
+                            <th class="p-4">Role</th>
+                            <th class="p-4">Contact (Username)</th>
+                            <th class="p-4">Base Salary</th>
+                            <th class="p-4 text-center">System Login</th>
+                            <th class="p-4 pr-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody" class="text-sm text-slate-700 divide-y divide-slate-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="staffModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800" id="modalTitle">Onboard New Staff</h2>
+            <button onclick="closeStaffModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="p-6 overflow-y-auto modal-scroll bg-white">
+            <form method="POST" action="{% url 'staff_management' %}" id="staffForm" class="space-y-8">
+                {% csrf_token %}
+                <input type="hidden" name="staff_id" id="staffId">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Personal Details</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                                    <input type="text" name="name" id="sName" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number (Becomes Username) *</label>
+                                    <input type="text" name="phone" id="sPhone" required placeholder="e.g. 9876543210" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Monthly Salary (₹) *</label>
+                                    <input type="number" name="salary" id="sSalary" required value="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Role & Login Settings</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Role/Designation *</label>
+                                    <select name="role" id="sRole" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                                        {% for role in roles %}
+                                            <option value="{{ role.id }}">{{ role.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <span class="text-xs font-bold text-slate-800"><i class="fa-solid fa-lock text-emerald-500 mr-1"></i> Grant System Access?</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="pos_access" id="sPosAccess" class="sr-only peer" onchange="toggleAccessFields()">
+                                            <div class="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="accessFields" class="hidden space-y-4 border-t border-slate-200 pt-3 mt-2">
+                                        <p class="text-[10px] text-slate-500 leading-tight">Username will be the phone number entered above.</p>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Login Password / PIN *</label>
+                                            <div class="relative">
+                                                <i class="fa-solid fa-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                                <input type="text" name="password" id="sPin" placeholder="Enter password..." class="w-full pl-8 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-black focus:ring-2 focus:ring-emerald-500 outline-none">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-6 border-t border-slate-100 flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="closeStaffModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-lg transition">Save Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Inject Django Data
+    let staffData = [
+        {% for staff in staff_list %}
+        { 
+            id: {{ staff.id }}, 
+            empId: 'EMP-{{ staff.id|stringformat:"03d" }}', 
+            name: "{{ staff.name|escapejs }}", 
+            role: "{{ staff.role.name|escapejs }}", 
+            role_id: "{{ staff.role.id }}",
+            phone: "{{ staff.phone|escapejs }}", 
+            salary: {{ staff.salary|default:0 }}, 
+            posAccess: {% if staff.user %}true{% else %}false{% endif %},
+            pin: "{{ staff.pin_code|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const roleColors = {
+        'Manager': 'bg-purple-100 text-purple-700',
+        'Cashier': 'bg-blue-100 text-blue-700',
+        'Chef': 'bg-orange-100 text-orange-700',
+        'Waiter': 'bg-emerald-100 text-emerald-700'
+    };
+
+    function renderStaffList() {
+        const tbody = document.getElementById('staffTableBody');
+        const searchTerm = document.getElementById('searchStaff').value.toLowerCase();
+        
+        tbody.innerHTML = '';
+        let totalSal = 0;
+
+        staffData.forEach(staff => {
+            totalSal += staff.salary;
+
+            if (!staff.name.toLowerCase().includes(searchTerm) && !staff.phone.toLowerCase().includes(searchTerm)) return;
+
+            let colorClass = roleColors[staff.role] || 'bg-slate-100 text-slate-700';
+            let accessHtml = staff.posAccess 
+                ? `<div class="flex flex-col items-center"><i class="fa-solid fa-circle-check text-emerald-500 mb-1"></i><span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">User: ${staff.phone}</span></div>` 
+                : `<i class="fa-solid fa-lock text-slate-300"></i>`;
+            
+            let avatar = `https://ui-avatars.com/api/?name=${staff.name}&background=random&color=fff&rounded=true`;
+
+            let row = `
+            <tr class="hover:bg-slate-50 transition-colors group">
+                <td class="p-4 pl-6 flex items-center gap-3">
+                    <img src="${avatar}" class="w-10 h-10 shadow-sm border border-slate-200 rounded-full">
+                    <div>
+                        <p class="font-bold text-slate-800">${staff.name}</p>
+                        <p class="text-[10px] font-bold text-slate-400 mt-0.5">${staff.empId}</p>
+                    </div>
+                </td>
+                <td class="p-4">
+                    <span class="${colorClass} px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">${staff.role}</span>
+                </td>
+                <td class="p-4 text-sm font-medium text-slate-600">${staff.phone}</td>
+                <td class="p-4 font-black text-slate-800">₹${staff.salary.toLocaleString()}</td>
+                <td class="p-4 text-center">${accessHtml}</td>
+                <td class="p-4 pr-6 text-right space-x-2">
+                    <button onclick="editStaff(${staff.id})" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition shadow-sm" title="Edit">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                    <a href="/manage/staff/delete/${staff.id}/" onclick="return confirm('Delete this staff member?')" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition shadow-sm inline-flex items-center justify-center" title="Remove">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </a>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        document.getElementById('stat-total').innerText = staffData.length;
+        document.getElementById('stat-payroll').innerText = '₹' + totalSal.toLocaleString();
+    }
+
+    const modal = document.getElementById('staffModal');
+    
+    function openStaffModal() {
+        document.getElementById('staffForm').reset();
+        document.getElementById('staffId').value = '';
+        document.getElementById('modalTitle').innerText = "Onboard New Staff";
+        toggleAccessFields(); 
+        modal.classList.remove('hidden');
+    }
+
+    function closeStaffModal() { modal.classList.add('hidden'); }
+
+    function toggleAccessFields() {
+        const isChecked = document.getElementById('sPosAccess').checked;
+        const accessFields = document.getElementById('accessFields');
+        const pinInput = document.getElementById('sPin');
+        if(isChecked) {
+            accessFields.classList.remove('hidden'); accessFields.classList.add('block');
+            pinInput.required = true;
+        } else {
+            accessFields.classList.add('hidden'); accessFields.classList.remove('block');
+            pinInput.required = false;
+        }
+    }
+
+    function editStaff(id) {
+        let staff = staffData.find(s => s.id === id);
+        if(!staff) return;
+
+        document.getElementById('staffId').value = staff.id;
+        document.getElementById('sName').value = staff.name;
+        document.getElementById('sPhone').value = staff.phone;
+        document.getElementById('sRole').value = staff.role_id;
+        document.getElementById('sSalary').value = staff.salary;
+        document.getElementById('sPosAccess').checked = staff.posAccess;
+        document.getElementById('sPin').value = staff.pin;
+        
+        toggleAccessFields();
+        document.getElementById('modalTitle').innerText = "Edit Profile: " + staff.name;
+        modal.classList.remove('hidden');
+    }
+
+    document.addEventListener("DOMContentLoaded", renderStaffList);
+</script>
+{% endblock %}

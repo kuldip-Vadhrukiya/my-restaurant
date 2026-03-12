@@ -1,0 +1,200 @@
+<div class="p-5 h-full flex flex-col">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-gray-900">Your Cart</h2>
+
+        <!-- Only ONE close button -->
+        <button onclick="closeCartDrawer()" class="text-gray-400 text-2xl hover:text-red-500">
+            &times;
+        </button>
+    </div>
+
+    <!-- ITEMS LIST -->
+    <div id="cartItems" class="flex-1 overflow-y-auto pr-1 space-y-4 hide-scrollbar">
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div id="emptyCartBox" class="hidden text-center py-12 text-gray-500">
+        <i class="fa-solid fa-cart-shopping text-5xl mb-3 text-emerald-600"></i>
+        <p class="font-semibold text-lg">Your cart is empty</p>
+        <p class="text-sm text-gray-400">Add some delicious items!</p>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="pt-4 border-t border-gray-200 mt-4">
+        <div class="flex justify-between text-lg font-bold text-gray-900 mb-3">
+            <span>Total Amount</span>
+            <span id="cartTotal">₹0</span>
+        </div>
+
+        <button onclick="placeOrder()" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold">
+            Place Order
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    /* ⭐ OPEN/CLOSE */
+    function openCartDrawer() {
+        document.getElementById("cartDrawer").style.height = "75vh";
+        loadCart();
+    }
+
+    function closeCartDrawer() {
+        document.getElementById("cartDrawer").style.height = "0";
+    }
+
+    /* ⭐ LOAD CART */
+    function loadCart() {
+
+        fetch("/cart/data/")
+            .then(res => res.json())
+            .then(data => {
+
+                let container = document.getElementById("cartItems");
+                let emptyBox = document.getElementById("emptyCartBox");
+                let totalBox = document.getElementById("cartTotal");
+                let badge = document.getElementById("cartBadge");
+
+                container.innerHTML = "";
+                let total = 0;
+                let count = 0;
+
+                if (data.items.length === 0) {
+                    emptyBox.classList.remove("hidden");
+                    totalBox.innerText = "₹0";
+                    badge.innerText = "0";
+                    return;
+                }
+
+                emptyBox.classList.add("hidden");
+
+                data.items.forEach(item => {
+
+                    total += item.total;
+                    count += item.qty;
+
+                    container.innerHTML += `
+
+<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+
+    <div class="flex justify-between items-start">
+
+        <!-- LEFT -->
+        <div class="flex gap-3">
+
+            <!-- IMAGE -->
+            <img src="${item.image}" class="w-16 h-16 rounded-lg shadow">
+
+            <div>
+
+                <p class="font-semibold text-gray-900">${item.name}</p>
+                <p class="text-sm text-gray-500">₹${item.price}</p>
+
+                <!-- SINGLE SPICE BUTTON -->
+                <label class="text-xs font-medium text-gray-500 block mt-2">Spice:</label>
+
+                <button 
+                    onclick="cycleCartSpice(${item.id}, this)"
+                    class="cartSpiceBtn mt-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border
+                        ${item.spice === 'Regular' ? 'bg-green-100 text-green-900' :
+                            item.spice === 'Medium' ? 'bg-orange-200 text-orange-900' :
+                                'bg-red-200 text-red-800'}">
+
+                    <i class="fa-solid fa-pepper-hot"></i>
+                    <span class="cartSpiceLabel">${item.spice}</span>
+                </button>
+
+                <!-- INSTRUCTION -->
+                <textarea 
+                    class="w-full mt-2 text-xs p-2 rounded-lg bg-gray-50 border focus:outline-none"
+                    placeholder="Add instructions..."
+                    onblur="updateInstruction(${item.id}, this.value)"
+                >${item.instruction || ''}</textarea>
+
+            </div>
+        </div>
+
+        <!-- RIGHT: horizontal controls -->
+        <div class="flex items-center gap-3">
+
+            <button onclick="decItem(${item.id})"
+                    class="w-8 h-8 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center font-bold">
+                –
+            </button>
+
+            <span class="font-semibold text-gray-900">${item.qty}</span>
+
+            <button onclick="incItem(${item.id})"
+                    class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">
+                +
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+`;
+                });
+
+                totalBox.innerText = "₹" + total;
+                badge.innerText = count;
+            });
+    }
+
+
+    /* ⭐ SPICE CYCLE BUTTON */
+    function cycleCartSpice(id, btn) {
+
+        let label = btn.querySelector(".cartSpiceLabel");
+
+        if (label.innerText === "Regular") {
+            label.innerText = "Medium";
+            btn.className =
+                "cartSpiceBtn mt-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border bg-orange-200 text-orange-900";
+            updateSpice(id, "Medium");
+        }
+        else if (label.innerText === "Medium") {
+            label.innerText = "Spicy";
+            btn.className =
+                "cartSpiceBtn mt-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border bg-red-200 text-red-800";
+            updateSpice(id, "Spicy");
+        }
+        else {
+            label.innerText = "Regular";
+            btn.className =
+                "cartSpiceBtn mt-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border bg-green-100 text-green-900";
+            updateSpice(id, "Regular");
+        }
+    }
+
+
+    /* ⭐ UPDATE SPICE */
+    function updateSpice(id, level) {
+        fetch(`/cart/spice/${id}/${level}/`).then(() => loadCart());
+    }
+
+    /* ⭐ UPDATE INSTRUCTION */
+    function updateInstruction(id, text) {
+        fetch(`/cart/instruction/${id}/?text=${encodeURIComponent(text)}`);
+    }
+function placeOrder() {
+    fetch("/place-order/")
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeCartDrawer();
+                alert("Order placed successfully!");
+                loadCart(); // empty cart show karega
+            }
+        });
+}
+
+</script>

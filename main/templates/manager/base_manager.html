@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Panel | Rajkot Rasoi</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Smooth Hover Effects */
+        .nav-item { transition: all 0.2s ease-in-out; }
+        .nav-item:hover { background-color: rgba(255, 255, 255, 0.05); color: #fff; transform: translateX(4px); }
+        .nav-item.active { background-color: #10b981; color: #fff; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden selection:bg-emerald-500 selection:text-white">
+
+    <div id="mobileOverlay" class="fixed inset-0 bg-slate-900/50 z-40 hidden lg:hidden backdrop-blur-sm" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col h-full transform -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl lg:shadow-none">
+        
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950/50 flex-shrink-0">
+            <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white mr-3 shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-utensils"></i>
+            </div>
+            <span class="text-lg font-black text-white tracking-wide">RAJKOT RASOI</span>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar" id="sidebarMenu">
+            
+            <div>
+                <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Core</p>
+                <a href="{% url 'manager_dashboard' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-chart-pie w-5 text-center mr-2 opacity-80"></i> Dashboard
+                </a>
+                <a href="{% url 'manager_pos' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-desktop w-5 text-center mr-2 opacity-80"></i> POS & Billing
+                </a>
+            </div>
+
+            <div>
+                <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Operations</p>
+                <a href="{% url 'manager_live_orders' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-bell-concierge w-5 text-center mr-2 opacity-80"></i> Live Orders
+                    <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">Live</span>
+                </a>
+                <a href="{% url 'manager_tables' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-chair w-5 text-center mr-2 opacity-80"></i> Table Status
+                </a>
+                <a href="{% url 'manager_kitchen' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-fire-burner w-5 text-center mr-2 opacity-80"></i> Kitchen Monitor
+                </a>
+            </div>
+
+            <div>
+                <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Fast Controls</p>
+                <a href="{% url 'manager_menu_control' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-toggle-on w-5 text-center mr-2 opacity-80"></i> Menu Control (86)
+                </a>
+                <a href="{% url 'manager_overrides' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-scissors w-5 text-center mr-2 opacity-80"></i> Voids & Discounts
+                </a>
+            </div>
+
+            <div>
+                <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Shift & Cash</p>
+                <a href="{% url 'manager_expenses' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-wallet w-5 text-center mr-2 opacity-80"></i> Petty Cash
+                </a>
+                <a href="{% url 'manager_attendance' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-user-clock w-5 text-center mr-2 opacity-80"></i> Staff Attendance
+                </a>
+                <a href="{% url 'manager_day_close' %}" class="nav-item flex items-center px-3 py-2.5 rounded-lg text-sm font-medium mb-1">
+                    <i class="fa-solid fa-lock w-5 text-center mr-2 opacity-80"></i> Day Close (Z-Report)
+                </a>
+            </div>
+            
+        </div>
+
+        <div class="p-4 border-t border-slate-800 bg-slate-950/30 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md">MG</div>
+                <div>
+                    <p class="text-xs font-bold text-white">Floor Manager</p>
+                    <p class="text-[10px] text-emerald-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> On Duty</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shadow-sm z-30 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="lg:hidden text-slate-500 hover:text-slate-800 focus:outline-none">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-5">
+                <a href="{% url 'manager_pos' %}" class="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-emerald-200">
+                    <i class="fa-solid fa-plus"></i> New Order
+                </a>
+
+                <div class="relative">
+                    <button onclick="toggleDropdown()" class="flex items-center gap-2 focus:outline-none">
+                        <img src="https://ui-avatars.com/api/?name=Manager&background=3b82f6&color=fff" class="w-8 h-8 rounded-full border border-slate-200 shadow-sm transition-transform hover:scale-105">
+                    </button>
+                    <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 transform origin-top-right transition-all">
+                        <a href="{% url 'admin_logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold"><i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> End Shift (Logout)</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50/50">
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Mobile Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        function toggleSidebar() { 
+            sidebar.classList.toggle('-translate-x-full'); 
+            overlay.classList.toggle('hidden'); 
+        }
+        
+        // Profile Dropdown Toggle
+        const profileDropdown = document.getElementById('profileDropdown');
+        
+        function toggleDropdown() { 
+            profileDropdown.classList.toggle('hidden'); 
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.rounded-full')) {
+                if (!profileDropdown.classList.contains('hidden')) {
+                    profileDropdown.classList.add('hidden');
+                }
+            }
+        }
+
+        // SMART ACTIVE LINK HIGHLIGHTER (Auto-selects sidebar tab based on URL)
+        document.addEventListener("DOMContentLoaded", function() {
+            const currentPath = window.location.pathname;
+            const navItems = document.querySelectorAll('.nav-item');
+            
+            navItems.forEach(item => {
+                item.classList.remove('active', 'text-emerald-400');
+                if (item.getAttribute('href') === currentPath) {
+                    item.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

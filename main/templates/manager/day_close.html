@@ -1,0 +1,54 @@
+{% extends "manager/base_manager.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-20 fade-in">
+    <div class="flex justify-between items-center bg-slate-900 p-6 rounded-[2rem] shadow-xl">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-xl"><i class="fa-solid fa-vault"></i></div>
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Day Close & Z-Report</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Rajkot Rasoi Final Settlement</p>
+            </div>
+        </div>
+    </div>
+
+    {% if is_closed %}
+    <div class="bg-emerald-600 text-white rounded-[2rem] p-10 text-center shadow-xl">
+        <i class="fa-solid fa-check-circle text-6xl mb-4 animate-bounce"></i>
+        <h2 class="text-3xl font-black">Today's Shift is Closed!</h2>
+        <p class="text-emerald-100 mt-2 font-bold">Z-Report generated and system locked.</p>
+    </div>
+    {% else %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6">
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Sales Summary</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between font-bold text-sm text-slate-600"><span>Total Sales</span><span>₹{{ total_sales }}</span></div>
+                <div class="flex justify-between font-bold text-sm text-red-500"><span>Total Expenses</span><span>- ₹{{ total_expenses }}</span></div>
+                <div class="flex justify-between font-black text-lg text-emerald-600 pt-2 border-t"><span>Expected Cash</span><span>₹{{ expected_cash }}</span></div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8">
+            <h2 class="text-lg font-black text-slate-800 mb-6 border-b pb-4"><i class="fa-solid fa-cash-register mr-2"></i> Verify Physical Cash Drawer</h2>
+            
+            <form method="POST" action="{% url 'manager_day_close' %}" class="space-y-6">
+                {% csrf_token %}
+                <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                    <p class="text-[10px] font-black text-indigo-600 uppercase mb-2">Actual Cash Counted</p>
+                    <input type="number" name="actual_cash" required placeholder="₹ 0.00" class="w-full text-3xl font-black bg-transparent outline-none text-indigo-900 placeholder-indigo-300">
+                </div>
+                
+                <input type="text" name="reason" placeholder="Reason (if cash mismatch)..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold">
+                <input type="password" name="pin" required placeholder="Manager PIN (1234)" maxlength="4" class="w-full p-4 bg-slate-100 border border-slate-200 rounded-xl text-center text-2xl font-black tracking-[1em] focus:bg-white outline-none">
+                
+                <button type="submit" class="w-full py-5 bg-slate-900 text-white rounded-[2rem] text-sm font-black shadow-xl hover:bg-red-600 transition-all active:scale-95">
+                    <i class="fa-solid fa-lock"></i> LOCK SYSTEM & CLOSE DAY
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

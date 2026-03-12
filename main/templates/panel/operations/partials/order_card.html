@@ -1,0 +1,64 @@
+<div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 card-enter hover:shadow-md transition-shadow relative overflow-hidden">
+    
+    <div class="absolute top-0 right-0 bg-slate-100 text-slate-500 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-bl-lg border-b border-l border-slate-200">
+        {% if order.table %}Dine-in{% else %}Parcel{% endif %}
+    </div>
+
+    <div class="flex justify-between items-start mb-3 mt-1">
+        <div>
+            <h4 class="font-black text-base text-slate-900 leading-none">
+                {{ order.table.name|default:"Takeaway" }}
+            </h4>
+            <span class="text-[10px] font-bold text-slate-400">ID: {{ order.order_id }}</span>
+        </div>
+        <div class="text-right">
+            <h3 class="font-black text-lg text-emerald-600 leading-none">₹{{ order.total_amount }}</h3>
+            <div class="mt-1">
+                {% if order.payment_status == 'Pending' %}
+                    <span class="bg-red-50 border border-red-100 text-red-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Unpaid</span>
+                {% else %}
+                    <span class="bg-emerald-50 border border-emerald-100 text-emerald-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Paid</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+        {% for item in order.items.all %}
+        <div class="flex justify-between text-[11px] mb-1.5 last:mb-0 text-slate-600 font-medium">
+            <span class="truncate pr-2"><span class="font-black text-slate-400 mr-1">{{ item.qty }}x</span> {{ item.item_name }}</span>
+            <span class="font-bold text-slate-800 shrink-0">₹{{ item.get_total }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold mb-1">
+        <span><i class="fa-regular fa-clock mr-1"></i> {{ order.created_at|timesince }} ago</span>
+    </div>
+
+    <form method="POST" action="{% url 'live_orders' %}">
+        {% csrf_token %}
+        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+        
+        {% if col == 'pending' %}
+            <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="flex-1 py-2 bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest rounded-lg shadow-sm hover:bg-emerald-600 active:scale-95 transition">Accept & Send KOT</button>
+            </div>
+            
+        {% elif col == 'kitchen' %}
+            <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                <input type="hidden" name="action" value="force_ready">
+                <button type="submit" class="flex-1 py-2 bg-slate-100 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200 transition">Force Ready</button>
+            </div>
+            
+        {% elif col == 'ready' %}
+            <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                <input type="hidden" name="action" value="settle">
+                <button type="submit" class="flex-1 py-2.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-lg shadow-lg hover:bg-slate-800 active:scale-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-indian-rupee-sign"></i> Settle Bill
+                </button>
+            </div>
+        {% endif %}
+    </form>
+</div>

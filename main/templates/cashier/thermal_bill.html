@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Bill #{{ order.order_id }}</title>
+    <style>
+        @page { size: 80mm 200mm; margin: 0; }
+        body { font-family: 'Courier New', Courier, monospace; width: 72mm; margin: 0 auto; padding: 5mm; font-size: 12px; line-height: 1.2; color: #000; }
+        .text-center { text-align: center; } .text-right { text-align: right; } .font-black { font-weight: 900; } .uppercase { text-transform: uppercase; }
+        .divider { border-top: 1px dashed #000; margin: 3mm 0; } .divider-solid { border-top: 1.5px solid #000; margin: 3mm 0; }
+        .header-title { font-size: 18px; letter-spacing: -1px; margin-bottom: 1mm; }
+        .item-table { width: 100%; border-collapse: collapse; } .item-table th { font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 1mm; } .item-table td { padding: 1.5mm 0; vertical-align: top; }
+        .total-row td { font-size: 14px; padding-top: 2mm; } .footer-msg { font-size: 10px; margin-top: 5mm; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+
+    <div class="no-print" style="background: #000; color: #fff; padding: 10px; text-align: center; cursor: pointer; margin-bottom: 20px;" onclick="window.print()">
+        CLICK TO PRINT BILL
+    </div>
+
+    <div class="text-center">
+        <h1 class="header-title font-black uppercase">Rajkot Rasoi</h1>
+        <p>123, Food Street, Rajkot<br>GSTIN: 24AAACR1234A1Z</p>
+        <p>Ph: +91 98765 43210</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <table style="width: 100%; font-size: 11px;">
+        <tr>
+            <td>Date: {{ order.updated_at|date:"d/m/Y" }}</td>
+            <td class="text-right">Time: {{ order.updated_at|time:"h:i A" }}</td>
+        </tr>
+        <tr>
+            <td class="font-black">Bill No: #ORD-{{ order.order_id }}</td>
+            <td class="text-right font-black">Table: {% if order.table %}{{ order.table.name }}{% else %}Takeaway{% endif %}</td>
+        </tr>
+    </table>
+
+    <div class="divider-solid"></div>
+
+    <table class="item-table">
+        <thead>
+            <tr class="uppercase">
+                <th class="text-left">Item</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="font-black">{{ item.item_name }}</td>
+                <td class="text-center">{{ item.qty }}</td>
+                <td class="text-right">{{ item.price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="divider-solid"></div>
+
+    <table style="width: 100%;" class="font-black">
+        <tr>
+            <td class="uppercase">Sub Total</td>
+            <td class="text-right">{{ subtotal }}</td>
+        </tr>
+        <tr>
+            <td class="uppercase">GST (5.0%)</td>
+            <td class="text-right">{{ gst }}</td>
+        </tr>
+        <tr class="total-row">
+            <td class="uppercase" style="font-size: 16px;">Grand Total</td>
+            <td class="text-right" style="font-size: 16px;">₹{{ order.total_amount }}</td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="text-center uppercase font-black">
+        <p>Payment Mode: {{ order.payment_mode|default:"CASH" }}</p>
+        <p style="font-size: 14px;">--- PAID ---</p>
+    </div>
+
+    <div class="footer-msg text-center">
+        <p>Thank You! Visit Again.</p>
+        <p>Software by Saltoro Ceramics</p>
+    </div>
+    <p class="text-center">. . . . . . . . . . . . . . .</p>
+
+</body>
+</html>

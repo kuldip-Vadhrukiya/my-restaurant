@@ -1,0 +1,145 @@
+{% extends "manager/base_manager.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-10 fade-in">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-orange-200">
+                <i class="fa-solid fa-fire-burner"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">Live KOT Monitor</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Rajkot Rasoi Live Kitchen Feed</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <div class="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-3">
+                <span class="w-2 h-2 rounded-full {% if active_tables_count > 0 %}bg-emerald-500 animate-pulse{% else %}bg-slate-300{% endif %}"></span>
+                <span class="text-[10px] font-black text-slate-600 uppercase tracking-tighter">{{ active_tables_count }} Active Tables</span>
+            </div>
+            <button onclick="window.location.reload()" class="p-2.5 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-emerald-600 transition-colors active:rotate-180 duration-300">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="kotGrid">
+        
+        {% for data in orders_data %}
+            
+            {% if data.is_delayed %}
+            <div class="bg-white border-2 border-red-500/50 rounded-[2.5rem] overflow-hidden flex flex-col h-fit shadow-xl shadow-red-500/10 animate-pulse">
+                <div class="p-5 border-b border-red-50 flex justify-between items-center bg-red-50/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-red-200">
+                            {% if data.order.table %}{{ data.order.table.name|slice:"-2:" }}{% else %}PK{% endif %}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Order #{{ data.order.order_id }}</p>
+                            <p class="text-[9px] text-red-500 font-black uppercase tracking-tighter">Critical Delay</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 bg-red-600 text-white text-[9px] font-black rounded-full uppercase">Delayed</span>
+                </div>
+            {% elif data.order.status == 'Pending' %}
+            <div class="bg-white border border-blue-200 rounded-[2.5rem] overflow-hidden flex flex-col h-fit hover:shadow-md transition-all">
+                <div class="p-5 border-b border-blue-50 flex justify-between items-center bg-blue-50/30">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black shadow-sm">
+                            {% if data.order.table %}{{ data.order.table.name|slice:"-2:" }}{% else %}PK{% endif %}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Order #{{ data.order.order_id }}</p>
+                            <p class="text-[9px] text-blue-500 font-bold uppercase">New Order</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 text-[9px] font-black rounded-full uppercase">Just In</span>
+                </div>
+            {% elif data.order.status == 'Ready' %}
+            <div class="bg-white border border-purple-200 rounded-[2.5rem] overflow-hidden flex flex-col h-fit hover:shadow-md transition-all">
+                <div class="p-5 border-b border-purple-50 flex justify-between items-center bg-purple-50/30">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center font-black shadow-sm">
+                            {% if data.order.table %}{{ data.order.table.name|slice:"-2:" }}{% else %}PK{% endif %}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Order #{{ data.order.order_id }}</p>
+                            <p class="text-[9px] text-purple-500 font-bold uppercase">Ready to Serve</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 bg-purple-100 text-purple-700 text-[9px] font-black rounded-full uppercase">Ready</span>
+                </div>
+            {% else %}
+            <div class="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden flex flex-col h-fit hover:shadow-md transition-all">
+                <div class="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black shadow-sm">
+                            {% if data.order.table %}{{ data.order.table.name|slice:"-2:" }}{% else %}PK{% endif %}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Order #{{ data.order.order_id }}</p>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase">Preparing</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-full uppercase">Cooking</span>
+                </div>
+            {% endif %}
+
+                <div class="p-5 space-y-3 min-h-[120px]">
+                    {% for item in data.items %}
+                    <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                        <span class="text-sm font-bold text-slate-700">{{ item.qty }}x {{ item.item_name }}</span>
+                        {% if item.item_status == 'Ready' or item.item_status == 'Served' %}
+                            <i class="fa-solid fa-check-circle text-xs text-emerald-500"></i>
+                        {% else %}
+                            <i class="fa-solid fa-circle text-[6px] text-slate-300"></i>
+                        {% endif %}
+                    </div>
+                    {% if item.instruction %}
+                        <p class="text-[10px] italic text-red-400 font-medium leading-none -mt-1">* Note: {{ item.instruction }}</p>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="p-4 {% if data.is_delayed %}bg-red-50/50 border-red-100{% elif data.order.status == 'Pending' %}bg-blue-50/50 border-blue-100{% else %}bg-slate-50/50 border-slate-100{% endif %} border-t flex justify-between items-center">
+                    
+                    <p class="text-[10px] font-bold {% if data.is_delayed %}text-red-600{% else %}text-slate-400{% endif %}">
+                        <i class="fa-regular fa-clock mr-1"></i> {{ data.elapsed_mins }}m elapsed
+                    </p>
+                    
+                    <div class="flex gap-2">
+                        <form method="POST" action="{% url 'manager_live_orders' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="order_id" value="{{ data.order.order_id }}">
+                            
+                            {% if data.order.status == 'Pending' %}
+                                <input type="hidden" name="action" value="accept">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-[10px] font-bold rounded-xl active:scale-95 shadow-sm">Accept Order</button>
+                            
+                            {% elif data.order.status == 'Cooking' %}
+                                <input type="hidden" name="action" value="force_ready">
+                                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-[10px] font-bold rounded-xl active:scale-95 shadow-sm">Mark Ready</button>
+                            
+                            {% elif data.order.status == 'Ready' %}
+                                <button type="button" onclick="alert('Waiting for waiter to pick up!')" class="px-4 py-2 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-xl active:scale-95 shadow-sm">Waiting Pickup</button>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full py-20 flex flex-col items-center justify-center text-slate-400">
+                <i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"></i>
+                <h3 class="text-xl font-black text-slate-800">Kitchen is completely free</h3>
+                <p class="text-sm font-medium mt-1">No active orders right now.</p>
+            </div>
+        {% endfor %}
+
+    </div>
+
+</div>
+{% endblock %}

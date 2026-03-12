@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; }
+    
+    /* Responsive Wrapper */
+    .order-wrapper { max-width: 1200px; margin: 0 auto; padding: 20px; padding-bottom: 120px; }
+    
+    .glass-card { background: white; border: 1px solid #e2e8f0; border-radius: 28px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+    
+    /* Progress Pulse */
+    .pulse-status { background: #f59e0b; animation: pulseCustom 1.5s infinite; }
+    @keyframes pulseCustom { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    /* Desktop Grid System */
+    @media (min-width: 1024px) {
+        .main-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; align-items: start; }
+        .sticky-summary { position: sticky; top: 100px; }
+    }
+
+    .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e2e8f0; padding: 16px; z-index: 1000; box-shadow: 0 -10px 20px rgba(0,0,0,0.05); }
+</style>
+
+<div class="order-wrapper">
+    <header class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-black tracking-tight text-slate-900">Live Order Tracking</h1>
+            <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Table: {{ order.table.name|default:'Takeaway' }} • Order #{{ order.order_id }}
+            </p>
+        </div>
+        <button onclick="sendServiceReq('waiter')" class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-700 shadow-sm border border-slate-200 hover:bg-slate-50 transition-all active:scale-90">
+            <i class="fa-solid fa-bell-concierge text-lg"></i>
+        </button>
+    </header>
+
+    {% if order %}
+    <div class="main-grid">
+        
+        <div class="space-y-6">
+            
+            <div class="glass-card p-6 md:p-8">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-900">{{ overall_status }}</h2>
+                        <p class="text-xs text-slate-500 font-medium mt-1">We'll notify you as soon as your food is ready.</p>
+                    </div>
+                    <div class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">Live</div>
+                </div>
+
+                <div class="relative pt-2">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-[9px] font-black uppercase text-emerald-600">Confirmed</span>
+                        <span class="text-[9px] font-black uppercase {% if progress_width != '25%' %}text-emerald-600{% else %}text-slate-300{% endif %}">Cooking</span>
+                        <span class="text-[9px] font-black uppercase {% if progress_width == '75%' or progress_width == '100%' %}text-emerald-600{% else %}text-slate-300{% endif %}">Ready</span>
+                        <span class="text-[9px] font-black uppercase {% if progress_width == '100%' %}text-emerald-600{% else %}text-slate-300{% endif %}">Served</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
+                        <div style="width: {{ progress_width }}" class="h-full bg-emerald-500 transition-all duration-1000"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h3 class="font-black text-sm uppercase tracking-widest text-slate-400">Order Items</h3>
+                    <span class="text-[10px] font-bold text-slate-400">{{ served_count }}/{{ total_items }} Served</span>
+                </div>
+
+                {% for item in items %}
+                <div class="glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all {% if item.item_status == 'Served' %}opacity-50 grayscale{% endif %}">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-50 border flex items-center justify-center font-black text-slate-700 shadow-inner">
+                            {{ item.qty }}<small class="text-slate-400 ml-0.5">x</small>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                                {{ item.item_name }}
+                                {% if item.variant_name and item.variant_name != 'Regular' %}
+                                <span class="bg-slate-100 text-slate-500 text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-tighter">{{ item.variant_name }}</span>
+                                {% endif %}
+                            </h4>
+                            <div class="flex items-center gap-3 mt-1.5">
+                                <span class="text-xs font-black text-emerald-600">₹{{ item.price }}</span>
+                                <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full {% if item.item_status == 'Pending' %}bg-amber-50 text-amber-600{% else %}bg-emerald-50 text-emerald-600{% endif %}">
+                                    <span class="w-1.5 h-1.5 rounded-full {% if item.item_status == 'Pending' %}pulse-status{% else %}bg-emerald-500{% endif %}"></span>
+                                    <span class="text-[9px] font-black uppercase">{{ item.item_status }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:flex-col sm:items-end gap-3">
+                        <p class="text-lg font-black text-slate-900 tracking-tight">₹{{ item.get_total }}</p>
+                        <div class="flex gap-2">
+                            {% if item.item_status == 'Pending' %}
+                            <button id="undo-{{ item.id }}" onclick="cancelItem('{{ item.id }}')" data-passed="{{ item.seconds_passed }}" 
+                                    class="undo-btn px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase border border-red-100 active:scale-95 transition-all hover:bg-red-100">
+                                Undo <span class="timer-val">60</span>s
+                            </button>
+                            {% endif %}
+                            <button onclick="repeatItem('{{ item.item_name|escapejs }}', {{ item.price }})" class="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all hover:bg-slate-800">
+                                <i class="fa-solid fa-rotate-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% if item.instruction %}
+                <p class="text-[10px] text-slate-400 font-medium italic mt-[-10px] px-6 pb-2">"{{ item.instruction }}"</p>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="sticky-summary">
+            <div class="glass-card p-8 bg-white border-2 border-emerald-50/50">
+                <h3 class="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice text-emerald-500"></i> Current Bill
+                </h3>
+                
+                <div class="space-y-4 text-sm font-bold text-slate-500 border-b border-dashed border-slate-100 pb-6 mb-6">
+                    <div class="flex justify-between"><span>Items Total</span><span class="text-slate-900">₹{{ subtotal }}</span></div>
+                    <div class="flex justify-between"><span>CGST (2.5%)</span><span class="text-slate-900">₹{{ cgst }}</span></div>
+                    <div class="flex justify-between"><span>SGST (2.5%)</span><span class="text-slate-900">₹{{ sgst }}</span></div>
+                    <div class="flex justify-between text-emerald-600"><span>Offers Applied</span><span>-₹0.00</span></div>
+                </div>
+                
+                <div class="flex justify-between items-center mb-8">
+                    <div>
+                        <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">To be Paid</span>
+                        <span class="text-4xl font-black text-slate-900 leading-none">₹{{ grand_total }}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="bg-amber-100 text-amber-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">Unpaid</span>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex gap-3 items-start">
+                    <i class="fa-solid fa-circle-info text-blue-400 mt-0.5"></i>
+                    <p class="text-[10px] text-slate-500 font-medium leading-relaxed">
+                        You can add more items or request the final bill to pay via QR or Cash.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-40 text-center">
+        <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+            <i class="fa-solid fa-utensils text-4xl text-slate-300"></i>
+        </div>
+        <h3 class="font-black text-2xl text-slate-900">No Orders Found</h3>
+        <p class="text-slate-400 font-medium mt-2">Looks like you haven't ordered anything yet.</p>
+        <a href="{% url 'menu' %}" class="mt-8 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:scale-105 transition-all">Start Ordering</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="action-bar lg:hidden">
+    <div class="flex gap-4">
+        <a href="{% url 'menu' %}" class="flex-1 py-4 bg-slate-100 text-slate-900 rounded-2xl font-black text-[11px] uppercase text-center border border-slate-200">
+            <i class="fa-solid fa-plus mr-1"></i> Add Items
+        </a>
+        <button id="requestBillBtn" onclick="sendServiceReq('bill')" class="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black text-[11px] uppercase shadow-lg shadow-emerald-200">
+            <i class="fa-solid fa-check-double mr-1"></i> Request Bill
+        </button>
+    </div>
+</div>
+
+<div class="hidden lg:block action-bar px-20">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+         <span class="text-sm font-bold text-slate-400">Enjoying your meal at Rajkot Rasoi?</span>
+         <div class="flex gap-4">
+            <a href="{% url 'menu' %}" class="px-8 py-3 bg-slate-100 text-slate-900 rounded-xl font-black text-xs uppercase border border-slate-200 hover:bg-slate-200 transition-all">Add More Items</a>
+            <button onclick="sendServiceReq('bill')" class="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all">Request Bill Now</button>
+         </div>
+    </div>
+</div>
+
+<script>
+    // 1. SMART TIMER LOGIC
+    function syncTimers() {
+        document.querySelectorAll('.undo-btn').forEach(btn => {
+            let passed = parseInt(btn.dataset.passed);
+            passed++; 
+            btn.dataset.passed = passed; 
+            let timeLeft = 60 - passed;
+            
+            if (timeLeft > 0) {
+                btn.querySelector('.timer-val').innerText = timeLeft;
+            } else {
+                btn.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => btn.remove(), 400);
+            }
+        });
+    }
+    setInterval(syncTimers, 1000);
+    syncTimers();
+
+    // 2. CORE ACTIONS
+    function cancelItem(itemId) {
+        if (!confirm("Stop the Chef? Cancel this item?")) return;
+        fetch('/api/cancel-item/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ item_id: itemId })
+        })
+        .then(res => res.json())
+        .then(data => { if (data.success) window.location.reload(); else alert(data.message); });
+    }
+
+    function repeatItem(name, price) {
+        fetch('/api/repeat-item/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ item_name: name, price: price })
+        })
+        .then(res => res.json())
+        .then(data => { if (data.success) window.location.reload(); });
+    }
+
+    function sendServiceReq(action) {
+        fetch('/api/customer-call/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ action: action })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (action === 'bill') {
+                    alert("Bill Requested. We are finalizing your table account.");
+                    document.getElementById('requestBillBtn').disabled = true;
+                    document.getElementById('requestBillBtn').innerText = "LOCKING MENU...";
+                } else { alert("Staff notified!"); }
+            }
+        });
+    }
+
+    // 3. AUTO-RELOAD ON STATUS CHANGE
+    setInterval(() => {
+        {% if order %}
+        fetch(`/api/get-order-status/{{ order.order_id }}/`)
+            .then(res => res.json())
+            .then(data => { if (data.status_changed) window.location.reload(); });
+        {% endif %}
+    }, 12000);
+</script>
+{% endblock %}

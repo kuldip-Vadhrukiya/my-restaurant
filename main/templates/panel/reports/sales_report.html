@@ -1,0 +1,238 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .chart-container { position: relative; height: 300px; width: 100%; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 fade-in font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Deep Reports & Analytics 📊</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Business intelligence, sales trends, and top performers.</p>
+        </div>
+        <div class="flex gap-3 items-center">
+            <div class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm flex items-center">
+                <i class="fa-regular fa-calendar text-slate-400 mr-2"></i>
+                <select id="timeRange" onchange="updateCharts()" class="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer">
+                    <option value="today">Today's Sales</option>
+                    <option value="7days" selected>Last 7 Days</option>
+                    <option value="30days">Last 30 Days</option>
+                </select>
+            </div>
+            <button onclick="window.print()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-download"></i> Export PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-300 transition-colors">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-110 transition-transform"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex justify-between">Total Revenue <i class="fa-solid fa-indian-rupee-sign text-emerald-500 text-lg"></i></p>
+                <h3 class="text-3xl font-black text-slate-800" id="kpi-revenue">₹0</h3>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-colors">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-110 transition-transform"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex justify-between">Total Orders <i class="fa-solid fa-receipt text-blue-500 text-lg"></i></p>
+                <h3 class="text-3xl font-black text-slate-800" id="kpi-orders">0</h3>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-purple-300 transition-colors">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-purple-50 rounded-full group-hover:scale-110 transition-transform"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex justify-between">Avg. Order Value <i class="fa-solid fa-basket-shopping text-purple-500 text-lg"></i></p>
+                <h3 class="text-3xl font-black text-slate-800" id="kpi-aov">₹0</h3>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+            <div class="absolute -right-6 -top-6 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 text-emerald-100 flex justify-between">Net Profit Margin <i class="fa-solid fa-percent text-emerald-400 text-lg"></i></p>
+                <h3 class="text-3xl font-black {% if net_margin >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}" id="kpi-margin">{{ net_margin }}%</h3>
+                <p class="text-xs font-bold text-emerald-300 mt-2">Overall Lifetime</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-slate-800">Sales Trend <span class="text-xs font-medium text-slate-400">(Last 7 Days)</span></h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-slate-800">Payment Modes</h3>
+            </div>
+            <div class="chart-container flex items-center justify-center relative">
+                <canvas id="paymentChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-4">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Received</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-slate-800">Top 5 Bestsellers <i class="fa-solid fa-crown text-amber-500 ml-1"></i></h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="topItemsChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-slate-800">Category Breakdown (Revenue)</h3>
+            </div>
+            <div class="space-y-5">
+                {% for cat in category_breakdown %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="font-bold text-slate-700">{{ cat.name }}</span>
+                        <span class="font-black text-slate-900">{{ cat.percent }}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5">
+                        <div class="{{ cat.color }} h-2.5 rounded-full" style="width: {{ cat.percent|stringformat:'f' }}%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-sm font-bold text-slate-400 text-center py-6">No sales data available yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const statsToday = {{ stats_today|safe }};
+    const stats7Days = {{ stats_7days|safe }};
+    const stats30Days = {{ stats_30days|safe }};
+    
+    const trendLabels = {{ sales_trend_labels|safe }};
+    const trendData = {{ sales_trend_data|safe }};
+    
+    const topLabels = {{ top_items_labels|safe }};
+    const topData = {{ top_items_data|safe }};
+    
+    const payUpi = {{ upi_rev|default:0 }};
+    const payCash = {{ cash_rev|default:0 }};
+    const payCard = {{ card_rev|default:0 }};
+
+    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+    Chart.defaults.color = '#64748b'; 
+    Chart.defaults.scale.grid.color = '#f1f5f9'; 
+
+    let salesChart, paymentChart, topItemsChart;
+
+    function initCharts() {
+        // 1. SALES TREND
+        const ctxSales = document.getElementById('salesTrendChart').getContext('2d');
+        let gradientSales = ctxSales.createLinearGradient(0, 0, 0, 300);
+        gradientSales.addColorStop(0, 'rgba(16, 185, 129, 0.2)'); 
+        gradientSales.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
+        salesChart = new Chart(ctxSales, {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Daily Revenue (₹)',
+                    data: trendData,
+                    borderColor: '#10b981', 
+                    backgroundColor: gradientSales,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#10b981',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4 
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', padding: 10, displayColors: false } },
+                scales: { y: { beginAtZero: true, border: { display: false } }, x: { border: { display: false }, grid: { display: false } } }
+            }
+        });
+
+        // 2. PAYMENT MODES
+        const ctxPayment = document.getElementById('paymentChart').getContext('2d');
+        paymentChart = new Chart(ctxPayment, {
+            type: 'doughnut',
+            data: {
+                labels: ['UPI / QR', 'Cash', 'Card'],
+                datasets: [{
+                    data: [payUpi, payCash, payCard],
+                    backgroundColor: ['#8b5cf6', '#10b981', '#3b82f6'],
+                    borderWidth: 0, hoverOffset: 5
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '75%',
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, padding: 20 } } }
+            }
+        });
+
+        // 3. TOP ITEMS
+        const ctxTop = document.getElementById('topItemsChart').getContext('2d');
+        topItemsChart = new Chart(ctxTop, {
+            type: 'bar',
+            data: {
+                labels: topLabels,
+                datasets: [{
+                    label: 'Qty Sold',
+                    data: topData,
+                    backgroundColor: '#3b82f6', borderRadius: 6, barThickness: 24
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, border: { display: false }, grid: { display: false } }, y: { border: { display: false } } }
+            }
+        });
+
+        // Initial trigger to load 7 days data
+        updateCharts();
+    }
+
+    // Update Top KPIs on Dropdown Change
+    function updateCharts() {
+        const range = document.getElementById('timeRange').value;
+        let dataObj;
+        
+        if(range === 'today') dataObj = statsToday;
+        else if(range === '30days') dataObj = stats30Days;
+        else dataObj = stats7Days;
+
+        document.getElementById('kpi-revenue').innerText = '₹' + dataObj.revenue.toLocaleString();
+        document.getElementById('kpi-orders').innerText = dataObj.orders;
+        document.getElementById('kpi-aov').innerText = '₹' + dataObj.aov;
+    }
+
+    document.addEventListener('DOMContentLoaded', initCharts);
+</script>
+{% endblock %}

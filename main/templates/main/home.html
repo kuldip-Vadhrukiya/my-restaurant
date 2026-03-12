@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="min-h-screen bg-slate-50 pb-24">
+
+    <section class="px-4 pt-10">
+        <div class="max-w-7xl mx-auto">
+
+           <div class="rounded-[2rem] p-8 md:p-12 shadow-[0_20px_60px_rgba(0,0,0,0.05)] bg-white border border-slate-100 flex flex-col md:flex-row items-center gap-10">
+                <div class="flex items-center gap-6 flex-1">
+
+                    <div class="w-20 h-20 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0">
+                        {% if setting.logo %}
+                            <img src="{{ setting.logo.url }}" alt="Logo" class="w-14 h-14 object-contain rounded-xl">
+                        {% else %}
+                            <i class="fa-solid fa-utensils text-emerald-600 text-3xl"></i>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h1 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+                            {{ setting.name|default:"Rajkot Rasoi" }}
+                        </h1>
+                        <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-widest">
+                            {{ setting.tagline|default:"Authentic • Pure Veg • Fresh Food" }}
+                        </p>
+
+                        <span class="inline-flex items-center gap-2 mt-4 text-xs font-black text-slate-700 bg-slate-100 border border-slate-200 px-4 py-1.5 rounded-lg uppercase tracking-widest shadow-sm">
+                            <i class="fa-solid fa-chair text-emerald-500"></i>
+                            Table {{ table_number }}
+                        </span>
+                    </div>
+                </div>
+
+                <a href="{% url 'menu' %}" class="w-full md:w-auto text-center px-10 py-4 rounded-2xl font-black text-white bg-[#0f172a] hover:bg-slate-800 shadow-xl shadow-slate-900/20 active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-3 shrink-0">
+                    View Menu <i class="fa-solid fa-arrow-right"></i>
+                </a>
+                <div class="flex flex-col gap-3 w-full md:w-auto shrink-0">
+                    <button onclick="sendServiceReq('water')" class="w-full px-6 py-3 bg-blue-50 text-blue-600 font-black rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm">
+                        <i class="fa-solid fa-droplet"></i> Get Water
+                    </button>
+                    <button onclick="sendServiceReq('waiter')" class="w-full px-6 py-3 bg-amber-50 text-amber-600 font-black rounded-2xl border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm">
+                        <i class="fa-solid fa-bell"></i> Call Waiter
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-12 px-4">
+        <div class="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
+            <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-leaf text-emerald-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Pure Veg</p>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-broom text-cyan-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Hygienic</p>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-bolt text-amber-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Fast Prep</p>
+            </div>
+            <div class="hidden md:block bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-seedling text-green-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Fresh Items</p>
+            </div>
+            <div class="hidden md:block bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-heart text-rose-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Loved by All</p>
+            </div>
+            <div class="hidden md:block bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                <i class="fa-solid fa-clock text-blue-500 mb-2 text-xl"></i>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-600">Quick Order</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-16 px-4">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-center text-slate-800 font-black text-xl md:text-2xl mb-8 tracking-tight">
+                Why Choose Us
+            </h2>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                {% for feature in features %}
+                <div class="bg-white rounded-[1.5rem] p-5 text-center shadow-sm hover:shadow-md border border-slate-100 transition-all group">
+                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl {{ feature.color }} flex items-center justify-center transition-transform group-hover:scale-110">
+                        <i class="fa-solid {{ feature.icon }} text-xl"></i>
+                    </div>
+                    <p class="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-2">
+                        {{ feature.label }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <footer class="mt-20 pb-10 text-center">
+        <p class="text-xs font-bold text-slate-400">© 2026 {{ setting.name|default:"Rajkot Rasoi" }}. All rights reserved.</p>
+        <p class="text-[10px] font-medium text-slate-400 mt-1">Made with ❤️ for food lovers</p>
+    </footer>
+
+</div>
+<script>
+    function sendServiceReq(action) {
+        fetch('/api/customer-call/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ action: action })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                alert("✅ " + data.message + "\nWaiter is coming to Table {{ table_number }}!");
+            } else {
+                alert("❌ " + data.message);
+            }
+        });
+    }
+</script>
+
+{% endblock %}

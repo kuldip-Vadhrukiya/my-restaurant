@@ -1,0 +1,87 @@
+{% extends 'cashier/base_cashier.html' %}
+{% load static %}
+
+{% block page_title %}Shift Closing Report{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+    
+    {% if is_closed %}
+    <div class="bg-slate-900 text-white rounded-[2rem] p-10 text-center shadow-xl">
+        <i class="fa-solid fa-lock text-6xl mb-4 text-emerald-500"></i>
+        <h2 class="text-3xl font-black">Your Shift is Closed!</h2>
+        <p class="text-slate-400 mt-2 font-bold">Z-Report generated successfully. You may now logout.</p>
+        <a href="{% url 'admin_logout' %}" class="inline-block mt-6 px-8 py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600">Logout Safely</a>
+    </div>
+    {% else %}
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-2xl shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-amber-500/30"><i class="fa-solid fa-lock"></i></div>
+            <div>
+                <h3 class="text-sm font-black text-amber-800 uppercase tracking-widest">End of Shift Notice</h3>
+                <p class="text-xs font-bold text-amber-600 mt-0.5">Shift close karne ke baad aap naye bills generate nahi kar payenge. Sabhi payments verify karein.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="space-y-6">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">System Calculations</h4>
+            
+            <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl p-8 space-y-6">
+                <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <span class="text-sm font-bold text-slate-500">Total Cash Sales</span>
+                    <span class="text-lg font-black text-slate-900">₹{{ cash_sales }}</span>
+                </div>
+                <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <span class="text-sm font-bold text-slate-500">Total UPI Sales</span>
+                    <span class="text-lg font-black text-slate-900">₹{{ upi_sales }}</span>
+                </div>
+                <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <span class="text-sm font-bold text-slate-500">Total Card Sales</span>
+                    <span class="text-lg font-black text-slate-900">₹{{ card_sales }}</span>
+                </div>
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-sm font-bold text-slate-400 italic">(-) Petty Expenses (Cash Out)</span>
+                    <span class="text-md font-bold text-red-500">-₹{{ expenses }}</span>
+                </div>
+                <div class="bg-slate-900 rounded-3xl p-6 mt-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Expected Cash in Hand</span>
+                        <span class="text-2xl font-black text-emerald-400 italic">₹{{ expected_cash }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Cashier Verification</h4>
+            
+            <form action="{% url 'cashier_day_close' %}" method="POST" class="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl p-8 space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Actual Physical Cash Counted</label>
+                    <div class="relative">
+                        <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" step="0.01" name="actual_cash" placeholder="Enter cash in drawer" class="w-full pl-10 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-black text-lg text-slate-800" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Closing Notes / Mismatch Reason</label>
+                    <textarea name="reason" placeholder="Any discrepancies or notes..." rows="3" class="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-medium"></textarea>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" onclick="return confirm('WARNING: Are you absolutely sure you want to close the shift? This cannot be undone.')" class="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl shadow-2xl transition-all transform active:scale-95 flex items-center justify-center gap-3 uppercase text-xs tracking-[0.2em]">
+                        Finalize & Close Day <i class="fa-solid fa-flag-checkered text-emerald-500"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

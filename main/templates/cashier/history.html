@@ -1,0 +1,70 @@
+{% extends 'cashier/base_cashier.html' %}
+{% load static %}
+
+{% block page_title %}Sales History Today{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-in fade-in duration-500">
+    
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Sales</p>
+            <p class="text-2xl font-black text-slate-800">{{ total_sales_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm border-b-4 border-b-emerald-500">
+            <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Cash Collection</p>
+            <p class="text-2xl font-black text-slate-800">₹{{ cash_sales }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm border-b-4 border-b-blue-500">
+            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">UPI / Online</p>
+            <p class="text-2xl font-black text-slate-800">₹{{ upi_sales }}</p>
+        </div>
+        <div class="bg-slate-900 p-5 rounded-3xl shadow-lg">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Net Revenue</p>
+            <p class="text-2xl font-black text-emerald-400">₹{{ net_revenue }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-900 text-slate-400">
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Bill No</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Table</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Closing Time</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">Paid Amount</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">Payment Mode</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">Print</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for order in orders %}
+                <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-8 py-5 font-bold text-slate-700">#{{ order.order_id }}</td>
+                    <td class="px-8 py-5">
+                        <span class="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black text-slate-600">
+                            {% if order.table %}{{ order.table.name }}{% else %}Takeaway{% endif %}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-xs text-slate-500 font-medium">{{ order.updated_at|time:"h:i A" }}</td>
+                    <td class="px-8 py-5 font-black text-slate-900 text-right">₹{{ order.total_amount }}</td>
+                    <td class="px-8 py-5 text-center">
+                        <span class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-1 rounded-full 
+                            {% if order.payment_mode == 'Cash' %}text-emerald-600 bg-emerald-50
+                            {% elif order.payment_mode == 'UPI' %}text-blue-500 bg-blue-50
+                            {% else %}text-indigo-500 bg-indigo-50{% endif %}">
+                            <i class="fa-solid fa-check"></i> {{ order.payment_mode }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-center">
+                        <a href="{% url 'print_bill' order.order_id %}" target="_blank" class="text-slate-400 hover:text-slate-800"><i class="fa-solid fa-print"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center py-10 font-bold text-slate-400">No completed sales today yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

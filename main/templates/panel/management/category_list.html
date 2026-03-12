@@ -1,0 +1,334 @@
+{% extends 'panel/base.html' %}
+{% load static %}
+
+{% block page_title %}Menu Architecture{% endblock %}
+
+{% block content %}
+<div class="h-[calc(100vh-6rem)] flex flex-col font-sans bg-[#F8FAFC]">
+
+    <div class="px-6 pt-6 pb-2">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sections</p>
+                    <h2 class="text-2xl font-black text-slate-800">{{ categories.count }}</h2>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Menu</p>
+                    <h2 class="text-2xl font-black text-emerald-600" id="activeCountDisplay">0</h2>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                </div>
+            </div>
+
+            <div class="hidden md:block"></div>
+
+            <button onclick="toggleDrawer('open')" class="bg-slate-900 hover:bg-slate-800 text-white rounded-xl p-4 shadow-lg shadow-slate-900/10 flex items-center justify-center gap-3 transition-all transform active:scale-95 group">
+                <span class="font-bold text-sm">Add New Section</span>
+                <span class="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center group-hover:bg-white group-hover:text-slate-900 transition-colors">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <div class="px-6 py-4 sticky top-0 z-20">
+        <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-2">
+            
+            <div class="relative flex-1 w-full">
+                <i class="fa-solid fa-search absolute left-3.5 top-3.5 text-slate-400 text-xs"></i>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Search categories..." 
+                       class="w-full pl-9 pr-4 py-2.5 bg-transparent text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400">
+            </div>
+
+            <div class="w-px h-6 bg-slate-200 hidden md:block"></div>
+
+            <div class="flex w-full md:w-auto gap-2">
+                
+                <div class="relative min-w-[140px] flex-1 md:flex-none">
+                    <select id="statusFilter" onchange="applyFilters()" class="w-full appearance-none pl-3 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100 border border-transparent rounded-lg text-xs font-bold text-slate-600 outline-none cursor-pointer transition-colors">
+                        <option value="all">Status: All</option>
+                        <option value="active">Active Only</option>
+                        <option value="hidden">Hidden Only</option>
+                    </select>
+                    <i class="fa-solid fa-filter absolute right-3 top-3 text-[10px] text-slate-400 pointer-events-none"></i>
+                </div>
+
+                <div class="relative min-w-[150px] flex-1 md:flex-none">
+                    <select id="sortFilter" onchange="sortGrid()" class="w-full appearance-none pl-3 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100 border border-transparent rounded-lg text-xs font-bold text-slate-600 outline-none cursor-pointer transition-colors">
+                        <option value="seq">Sort: Sequence</option>
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="newest">Newest First</option>
+                    </select>
+                    <i class="fa-solid fa-arrow-down-short-wide absolute right-3 top-3 text-[10px] text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto custom-scrollbar px-6 pb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="categoryGrid">
+            
+            {% for cat in categories %}
+            <div class="category-card group bg-white rounded-xl p-4 border border-slate-200 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-md hover:border-blue-300 transition-all duration-200 relative"
+                 data-id="{{ cat.id }}"
+                 data-name="{{ cat.name|lower }}"
+                 data-seq="{{ cat.sort_order }}"
+                 data-date="{{ cat.created_at|date:'U' }}" 
+                 data-status="{{ cat.is_active|yesno:'active,hidden' }}"
+                 data-raw-name="{{ cat.name }}"
+                 data-desc="{{ cat.description|default:'' }}"
+                 data-icon="{{ cat.icon }}"
+                 data-is-active="{{ cat.is_active|yesno:'true,false' }}">
+
+                <div class="flex items-start justify-between mb-3">
+                    <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-indigo-50 to-white border border-indigo-50 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                        <i class="{{ cat.icon|default:'fa-solid fa-utensils' }}"></i>
+                    </div>
+
+                    <button onclick="editCategory(this)" class="text-slate-300 hover:text-slate-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm mb-0.5 capitalize truncate">{{ cat.name }}</h3>
+                    <p class="text-[11px] text-slate-400 font-medium line-clamp-1 h-4">{{ cat.description|default:"No description" }}</p>
+                </div>
+
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+                    
+                    <span class="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                        SEQ: #{{ cat.sort_order }}
+                    </span>
+
+                    {% if cat.is_active %}
+                        <div class="flex items-center gap-1.5">
+                            <span class="relative flex h-1.5 w-1.5">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-[10px] font-bold text-emerald-600">Active</span>
+                        </div>
+                    {% else %}
+                        <span class="text-[10px] font-bold text-slate-400">Hidden</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-60">
+                <i class="fa-solid fa-folder-open text-3xl text-slate-300 mb-2"></i>
+                <p class="text-sm font-bold text-slate-500">No Categories Found</p>
+            </div>
+            {% endfor %}
+            
+            <div id="noResults" class="hidden col-span-full py-12 text-center text-sm text-slate-400">
+                No matching categories found.
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="catDrawer" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] transition-opacity opacity-0" id="drawerBackdrop" onclick="toggleDrawer('close')"></div>
+    
+    <div class="absolute right-0 top-0 h-full w-[400px] bg-white shadow-2xl transform translate-x-full transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col" id="drawerPanel">
+        
+        <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+            <h2 class="text-lg font-black text-slate-800" id="drawerTitle">New Section</h2>
+            <button onclick="toggleDrawer('close')" class="h-8 w-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-800 flex items-center justify-center transition-all">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'category_management' %}" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            {% csrf_token %}
+            <input type="hidden" name="cat_id" id="cat_id">
+            
+            <input type="hidden" name="sort_order" id="sortOrder" value="0">
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category Name</label>
+                <div class="flex gap-3">
+                    <div class="flex-1 relative">
+                        <input type="text" name="name" id="nameInput" onkeyup="detectIcon()" required placeholder="e.g. Starters" 
+                               class="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition-all placeholder:text-slate-300 capitalize">
+                    </div>
+                    <div class="w-10 h-10 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-md transition-transform duration-200" id="iconContainer">
+                        <i id="iconPreview" class="fa-solid fa-utensils text-sm"></i>
+                    </div>
+                    <input type="hidden" name="icon" id="hiddenIcon" value="fa-solid fa-utensils">
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Description</label>
+                <textarea name="description" id="description" rows="3" placeholder="Short description..." class="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-slate-800 rounded-lg p-3 text-sm font-medium text-slate-700 outline-none transition-all resize-none"></textarea>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">Visible on Menu?</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="is_active" id="isActive" class="sr-only peer" checked>
+                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900"></div>
+                </label>
+            </div>
+
+            <div class="pt-4 mt-auto">
+                <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:shadow-xl transition-all active:scale-[0.98]">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- 1. STATS UPDATE ---
+    document.addEventListener('DOMContentLoaded', function() {
+        let count = 0;
+        document.querySelectorAll('.category-card').forEach(card => {
+            if(card.dataset.isActive === 'true') count++;
+        });
+        document.getElementById('activeCountDisplay').innerText = count;
+    });
+
+    // --- 2. DRAWER & EDIT ---
+    function toggleDrawer(action) {
+        const drawer = document.getElementById('catDrawer');
+        const backdrop = document.getElementById('drawerBackdrop');
+        const panel = document.getElementById('drawerPanel');
+
+        if (action === 'open') {
+            if(document.getElementById('cat_id').value === "") {
+                document.getElementById('drawerTitle').innerText = "New Section";
+                resetForm();
+            }
+            drawer.classList.remove('hidden');
+            setTimeout(() => {
+                backdrop.classList.remove('opacity-0');
+                panel.classList.remove('translate-x-full');
+            }, 10);
+        } else {
+            backdrop.classList.add('opacity-0');
+            panel.classList.add('translate-x-full');
+            setTimeout(() => {
+                drawer.classList.add('hidden');
+                document.getElementById('cat_id').value = ""; 
+            }, 300);
+        }
+    }
+
+    function editCategory(btn) {
+        // Find the closest card container (fixed selector)
+        const parent = btn.closest('.category-card');
+        
+        document.getElementById('drawerTitle').innerText = "Edit Section";
+        document.getElementById('cat_id').value = parent.dataset.id;
+        document.getElementById('nameInput').value = parent.dataset.rawName;
+        // Sort order is hidden but we preserve it
+        document.getElementById('sortOrder').value = parent.dataset.seq;
+        document.getElementById('description').value = parent.dataset.desc;
+        document.getElementById('isActive').checked = (parent.dataset.isActive === 'true');
+
+        const icon = parent.dataset.icon;
+        document.getElementById('iconPreview').className = icon;
+        document.getElementById('hiddenIcon').value = icon;
+
+        toggleDrawer('open');
+    }
+
+    function resetForm() {
+        document.getElementById('cat_id').value = "";
+        document.getElementById('nameInput').value = "";
+        document.getElementById('sortOrder').value = "0"; // Default
+        document.getElementById('description').value = "";
+        document.getElementById('isActive').checked = true;
+        document.getElementById('iconPreview').className = 'fa-solid fa-utensils';
+        document.getElementById('hiddenIcon').value = 'fa-solid fa-utensils';
+    }
+
+    // --- 3. FILTER & SORT ---
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+        const cards = document.querySelectorAll('.category-card');
+        let visible = 0;
+
+        cards.forEach(card => {
+            const name = card.dataset.name;
+            const cardStatus = card.dataset.status;
+            
+            let matchSearch = name.includes(search);
+            let matchStatus = (status === 'all') || (status === cardStatus);
+
+            if (matchSearch && matchStatus) {
+                card.style.display = 'block';
+                visible++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        document.getElementById('noResults').style.display = (visible === 0 && cards.length > 0) ? 'block' : 'none';
+    }
+
+    function sortGrid() {
+        const criteria = document.getElementById('sortFilter').value;
+        const grid = document.getElementById('categoryGrid');
+        const cards = Array.from(grid.getElementsByClassName('category-card'));
+        
+        cards.sort((a, b) => {
+            if (criteria === 'seq') return parseInt(a.dataset.seq) - parseInt(b.dataset.seq);
+            if (criteria === 'name_asc') return a.dataset.rawName.localeCompare(b.dataset.rawName);
+            if (criteria === 'name_desc') return b.dataset.rawName.localeCompare(a.dataset.rawName);
+            if (criteria === 'newest') return parseInt(b.dataset.date) - parseInt(a.dataset.date);
+        });
+        cards.forEach(card => grid.appendChild(card));
+    }
+
+    // --- 4. AUTO ICON ---
+    const iconMap = {
+        'pizza': 'fa-solid fa-pizza-slice', 'burger': 'fa-solid fa-burger',
+        'drink': 'fa-solid fa-martini-glass', 'coffee': 'fa-solid fa-mug-hot',
+        'cake': 'fa-solid fa-cake-candles', 'dessert': 'fa-solid fa-ice-cream',
+        'chinese': 'fa-solid fa-bowl-rice', 'rice': 'fa-solid fa-bowl-food',
+        'bread': 'fa-solid fa-bread-slice', 'salad': 'fa-solid fa-leaf',
+        'veg': 'fa-solid fa-carrot', 'soup': 'fa-solid fa-spoon',
+        'starter': 'fa-solid fa-utensils', 'thali': 'fa-solid fa-plate-wheat',
+        'combo': 'fa-solid fa-box-open', 'main': 'fa-solid fa-pot-food',
+        'biryani': 'fa-solid fa-bowl-food', 'roti': 'fa-solid fa-bread-slice',
+        'dosa': 'fa-solid fa-scroll', 'idli': 'fa-solid fa-circle',
+        'non': 'fa-solid fa-drumstick-bite', 'chicken': 'fa-solid fa-drumstick-bite'
+    };
+
+    function detectIcon() {
+        const name = document.getElementById('nameInput').value.toLowerCase();
+        let selectedIcon = 'fa-solid fa-utensils';
+        for (const [key, iconClass] of Object.entries(iconMap)) {
+            if (name.includes(key)) { selectedIcon = iconClass; break; }
+        }
+        document.getElementById('iconPreview').className = selectedIcon;
+        document.getElementById('hiddenIcon').value = selectedIcon;
+        
+        const container = document.getElementById('iconContainer');
+        container.classList.add('scale-110');
+        setTimeout(() => container.classList.remove('scale-110'), 200);
+    }
+</script>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+{% endblock %}

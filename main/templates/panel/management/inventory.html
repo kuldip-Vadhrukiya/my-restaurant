@@ -1,0 +1,317 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .row-enter { animation: fadeInRow 0.4s ease-out forwards; opacity: 0; }
+    @keyframes fadeInRow { to { opacity: 1; transform: translateY(0); } }
+    .slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Inventory & Stock</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Manage raw materials, track stock levels, and get low-stock alerts.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-file-arrow-down"></i> Export Report
+            </button>
+            <button onclick="openAddModal()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Add New Stock
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm {% if message.tags == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Items</p>
+                <h3 class="text-2xl font-black text-slate-800" id="totalItems">{{ total_items }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Low Stock Alerts</p>
+                <h3 class="text-2xl font-black text-red-600" id="lowStockCount">{{ low_stock_count }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inventory Value</p>
+                <h3 class="text-2xl font-black text-slate-800">₹{{ inventory_value }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-t-2xl border border-slate-200 border-b-0 flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <div class="relative w-full sm:w-80">
+            <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Search items (e.g. Paneer)" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar" id="categoryFilters">
+            <button onclick="filterCategory('All', this)" class="cat-btn bg-slate-900 text-white px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shadow-md">All</button>
+            <button onclick="filterCategory('Dairy', this)" class="cat-btn bg-white border border-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50 transition-all">Dairy</button>
+            <button onclick="filterCategory('Grocery', this)" class="cat-btn bg-white border border-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50 transition-all">Grocery</button>
+            <button onclick="filterCategory('Meat', this)" class="cat-btn bg-white border border-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50 transition-all">Meat</button>
+            <button onclick="filterCategory('Vegetables', this)" class="cat-btn bg-white border border-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50 transition-all">Vegetables</button>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-b-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-200">
+                        <th class="p-4 w-1/3">Item Name & Category</th>
+                        <th class="p-4">Current Stock</th>
+                        <th class="p-4">Min. Required</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTable" class="text-sm text-slate-700 divide-y divide-slate-100">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div id="addStockModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800">Add New Raw Material</h2>
+            <button onclick="closeAddModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+       <form method="POST" action="{% url 'inventory' %}">
+            {% csrf_token %}
+            <div class="p-6 bg-white space-y-4">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Item Name *</label>
+                        <input type="text" name="name" required placeholder="e.g. Fresh Paneer" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Category *</label>
+                        <select name="category" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Dairy">Dairy</option>
+                            <option value="Grocery">Grocery</option>
+                            <option value="Meat">Meat</option>
+                            <option value="Vegetables">Vegetables</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Packaging">Packaging</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Measurement Unit *</label>
+                        <select name="unit" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Kg">Kilograms (Kg)</option>
+                            <option value="Ltr">Liters (Ltr)</option>
+                            <option value="Pkts">Packets (Pkts)</option>
+                            <option value="Pcs">Pieces (Pcs)</option>
+                            <option value="Grams">Grams (g)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Opening Stock *</label>
+                        <input type="number" step="0.01" name="stock" required placeholder="0.0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Min. Alert Level *</label>
+                        <input type="number" step="0.01" name="min_level" required placeholder="e.g. 5.0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Price per Unit (₹) *</label>
+                        <input type="number" step="0.01" name="price_per_unit" required placeholder="e.g. 350.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <p class="text-[10px] text-slate-400 mt-1">Used to calculate total inventory value.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" onclick="closeAddModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/30 transition">Save Item</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="updateStockModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800" id="updateModalTitle">Update Stock</h2>
+            <button onclick="closeUpdateModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form method="POST" action="{% url 'update_inventory_stock' %}">
+            {% csrf_token %}
+            <input type="hidden" name="item_id" id="updateItemId">
+            
+            <div class="p-6 bg-white space-y-4">
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center mb-4">
+                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Current Stock</p>
+                    <h3 class="text-2xl font-black text-blue-600" id="updateCurrentStock">0.0</h3>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Quantity to Add (<span id="updateUnitLabel">Unit</span>) *</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-plus text-emerald-500"></i>
+                        </div>
+                        <input type="number" step="0.01" name="added_stock" required placeholder="e.g. 5.0" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500 outline-none font-black text-slate-800">
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">This will be added to the current stock.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" onclick="closeUpdateModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-packing"></i> Add Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // DATA AND FILTER LOGIC
+    // ==========================================
+    let inventoryData = [
+        {% for item in items %}
+        { 
+            id: {{ item.id }}, 
+            name: "{{ item.name|escapejs }}", 
+            category: "{{ item.category|escapejs }}", 
+            stock: {{ item.stock }}, 
+            unit: "{{ item.unit|escapejs }}", 
+            minLevel: {{ item.min_level }} 
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let currentCategory = 'All';
+
+    function filterCategory(category, btnElement) {
+        currentCategory = category;
+        
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.classList.remove('bg-slate-900', 'text-white', 'shadow-md');
+            btn.classList.add('bg-white', 'text-slate-600', 'border-slate-200');
+        });
+        
+        btnElement.classList.remove('bg-white', 'text-slate-600', 'border-slate-200');
+        btnElement.classList.add('bg-slate-900', 'text-white', 'shadow-md');
+
+        renderTable();
+    }
+
+    // ==========================================
+    // RENDER TABLE DYNAMICALLY
+    // ==========================================
+    function renderTable() {
+        const tbody = document.getElementById('inventoryTable');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        tbody.innerHTML = '';
+        
+        if(inventoryData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-bold">No inventory items found. Add new stock to start!</td></tr>`;
+            return;
+        }
+
+        let delay = 0;
+
+        inventoryData.forEach(item => {
+            if (!item.name.toLowerCase().includes(searchTerm) && !item.category.toLowerCase().includes(searchTerm)) return;
+            if (currentCategory !== 'All' && item.category !== currentCategory) return;
+
+            let statusHtml = '';
+            let stockColor = 'text-slate-900';
+            
+            if (item.stock === 0) {
+                statusHtml = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center w-max gap-1"><i class="fa-solid fa-circle-xmark"></i> Out of Stock</span>`;
+                stockColor = 'text-red-600 font-black';
+            } else if (item.stock <= item.minLevel) {
+                statusHtml = `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center w-max gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Low Stock</span>`;
+                stockColor = 'text-orange-600 font-black';
+            } else {
+                statusHtml = `<span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center w-max gap-1"><i class="fa-solid fa-check-circle"></i> Healthy</span>`;
+            }
+
+            let tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition-colors row-enter";
+            tr.style.animationDelay = `${delay}s`;
+            delay += 0.05;
+
+            tr.innerHTML = `
+                <td class="p-4">
+                    <p class="font-bold text-slate-800">${item.name}</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${item.category}</p>
+                </td>
+                <td class="p-4">
+                    <span class="text-base ${stockColor}">${item.stock} <span class="text-xs text-slate-500 font-medium">${item.unit}</span></span>
+                </td>
+                <td class="p-4 text-slate-500 font-medium text-sm">
+                    ${item.minLevel} ${item.unit}
+                </td>
+                <td class="p-4">
+                    ${statusHtml}
+                </td>
+                <td class="p-4 text-right space-x-2">
+                    <button onclick="openUpdateModal(${item.id}, '${item.name}', ${item.stock}, '${item.unit}')" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition shadow-sm" title="Add More Stock">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                    <a href="/management/inventory/delete/${item.id}/" onclick="return confirm('Are you sure you want to delete ${item.name}?')" class="w-8 h-8 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm inline-flex items-center justify-center" title="Delete Item">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ==========================================
+    // MODAL CONTROL LOGIC
+    // ==========================================
+    function openAddModal() { document.getElementById('addStockModal').classList.remove('hidden'); }
+    function closeAddModal() { document.getElementById('addStockModal').classList.add('hidden'); }
+
+    function openUpdateModal(id, name, stock, unit) {
+        document.getElementById('updateItemId').value = id;
+        document.getElementById('updateModalTitle').innerText = "Add Stock: " + name;
+        document.getElementById('updateCurrentStock').innerText = stock + " " + unit;
+        document.getElementById('updateUnitLabel').innerText = unit;
+        document.getElementById('updateStockModal').classList.remove('hidden');
+    }
+    function closeUpdateModal() { document.getElementById('updateStockModal').classList.add('hidden'); }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', renderTable);
+</script>
+{% endblock %}

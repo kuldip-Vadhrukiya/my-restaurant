@@ -1,0 +1,90 @@
+{% extends "manager/base_manager.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-20 fade-in">
+
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                <i class="fa-solid fa-money-bill-transfer"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">Petty Cash & Expenses</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Cash Drawer Outflow Tracker</p>
+            </div>
+        </div>
+        
+        <div class="bg-slate-900 px-6 py-3 rounded-2xl shadow-xl shadow-slate-900/20 text-right">
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Expense Today</p>
+            <p class="text-xl font-black text-white leading-none">₹{{ todays_expense_total }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 h-fit sticky top-6">
+            <h2 class="text-sm font-black text-slate-800 mb-6 pb-4 border-b border-slate-50">New Expense Entry</h2>
+
+            <form method="POST" action="{% url 'manager_expenses' %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Amount (₹)</p>
+                    <input type="number" name="amount" required min="1" placeholder="0.00" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Category</p>
+                    <select name="category" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500">
+                        <option value="Dairy / Milk">🥛 Dairy / Milk</option>
+                        <option value="Vegetables / Grocery">🥕 Vegetables / Grocery</option>
+                        <option value="Gas / Fuel">🔥 Gas / Fuel</option>
+                        <option value="Staff Advance">☕ Staff Advance</option>
+                        <option value="Other">📝 Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Note *</p>
+                    <textarea name="desc" required rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-4 mt-2 bg-slate-900 text-white rounded-xl text-sm font-black shadow-xl active:scale-95 transition-transform hover:bg-emerald-600">
+                    Record Expense
+                </button>
+            </form>
+        </div>
+
+        <div class="lg:col-span-2 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-fit">
+            <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="text-sm font-black text-slate-800">Today's Expense Log</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-100">
+                            <th class="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Time</th>
+                            <th class="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Category & Note</th>
+                            <th class="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        {% for exp in expenses %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-4"><p class="text-[10px] font-black text-slate-500">{{ exp.date|date:"h:i A" }}</p></td>
+                            <td class="px-6 py-4">
+                                <p class="text-xs font-black text-slate-800">{{ exp.category }}</p>
+                                <p class="text-[10px] font-bold text-slate-500 mt-0.5">"{{ exp.title }}"</p>
+                            </td>
+                            <td class="px-6 py-4 text-right"><p class="text-sm font-black text-slate-800">₹{{ exp.amount }}</p></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center py-10 text-slate-400 font-bold">No expenses recorded today.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

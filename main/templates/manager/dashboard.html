@@ -1,0 +1,152 @@
+{% extends "manager/base_manager.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 fade-in">
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28 hover:border-emerald-500/50 transition-colors group">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Shift Revenue</span>
+                <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <h3 class="text-2xl font-bold text-slate-900 leading-none">₹{{ shift_revenue }}</h3>
+                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Today</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Floor Occupancy</span>
+            <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-bold text-slate-900 leading-none">{{ active_tables }}<span class="text-slate-300 text-lg">/{{ total_tables }}</span></h3>
+                <span class="text-[10px] font-bold {% if occupancy_percent > 80 %}text-red-600{% else %}text-indigo-600{% endif %}">{{ occupancy_percent }}% FULL</span>
+            </div>
+            <div class="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                <div class="{% if occupancy_percent > 80 %}bg-red-500{% else %}bg-indigo-500{% endif %} h-full" style="width: {{ occupancy_percent }}%"></div>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Live Orders</span>
+            <h3 class="text-2xl font-bold text-slate-900 leading-none">{{ live_orders_count }}</h3>
+            <div class="flex items-center gap-1.5">
+                {% if delayed_count > 0 %}
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-orange-600 uppercase">{{ delayed_count }} Delayed</span>
+                {% else %}
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span class="text-[10px] font-bold text-emerald-600 uppercase">On Time</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bg-slate-900 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-28 relative overflow-hidden group">
+            <div class="relative z-10 flex flex-col justify-between h-full">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Cash In Drawer</span>
+                <h3 class="text-2xl font-bold text-white leading-none">₹{{ cash_in_drawer }}</h3>
+                <span class="text-[10px] font-bold text-emerald-400 uppercase">Today's Cash Collection</span>
+            </div>
+            <i class="fa-solid fa-wallet absolute -right-2 -bottom-2 text-white/5 text-4xl transform -rotate-12 transition-transform group-hover:scale-110"></i>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenue Distribution</h2>
+            <div class="flex gap-4">
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[10px] font-bold text-slate-600">UPI</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-500"></span><span class="text-[10px] font-bold text-slate-600">CASH</span></div>
+            </div>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="flex justify-between items-center px-4">
+                <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">UPI / Digital</p><p class="text-xl font-bold text-slate-900">₹{{ upi_rev }}</p></div>
+                <div class="text-right"><p class="text-[10px] font-bold text-emerald-600">{{ upi_pct }}%</p></div>
+            </div>
+            <div class="flex justify-between items-center px-4 md:border-x border-slate-100">
+                <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Physical Cash</p><p class="text-xl font-bold text-slate-900">₹{{ cash_rev }}</p></div>
+                <div class="text-right"><p class="text-[10px] font-bold text-indigo-600">{{ cash_pct }}%</p></div>
+            </div>
+            <div class="flex justify-between items-center px-4">
+                <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Card Terminal</p><p class="text-xl font-bold text-slate-900">₹{{ card_rev }}</p></div>
+                <div class="text-right"><p class="text-[10px] font-bold text-slate-400">{{ card_pct }}%</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Active Orders Feed</h3>
+                <a href="{% url 'manager_live_orders' %}" class="text-[10px] font-bold text-slate-400 hover:text-emerald-600 transition-colors">VIEW FULL FEED</a>
+            </div>
+            
+            <div class="divide-y divide-slate-50 overflow-y-auto max-h-[360px] no-scrollbar">
+                {% for order in active_orders_feed %}
+                    <div class="p-4 flex items-center justify-between {% if order.is_delayed %}bg-red-50/50{% else %}hover:bg-slate-50{% endif %} transition-colors group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 {% if order.is_delayed %}bg-red-600{% else %}bg-slate-900 group-hover:bg-emerald-600{% endif %} text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-sm transition-colors">
+                                {{ order.table }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800 leading-none mb-1">{{ order.summary }}</p>
+                                {% if order.is_delayed %}
+                                    <p class="text-[10px] text-red-600 font-black animate-pulse uppercase">Delayed: {{ order.elapsed_mins }}m</p>
+                                {% else %}
+                                    <p class="text-[10px] text-slate-400 font-medium">{{ order.elapsed_mins }} mins ago • {{ order.status }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if order.is_delayed %}
+                            <button class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-bold shadow-sm shadow-red-200">NOTIFY CHEF</button>
+                        {% else %}
+                            <button class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-colors">VIEW</button>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <div class="p-10 text-center text-slate-400">
+                        <i class="fa-solid fa-mug-hot text-3xl mb-3 opacity-50"></i>
+                        <p class="text-sm font-bold">No active orders right now.</p>
+                        <p class="text-xs">Kitchen is free.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Low Stock Alerts ({{ low_stock_count }})</h3>
+                <div class="space-y-2">
+                    {% for item in low_stock_items %}
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span>{{ item.name }}</span>
+                            <span class="{% if item.stock <= 0 %}text-red-500 bg-red-50{% else %}text-orange-500 bg-orange-50{% endif %} px-2 py-0.5 rounded text-[9px]">
+                                {% if item.stock <= 0 %}OUT OF STOCK{% else %}LOW: {{ item.stock|floatformat:1 }} {{ item.unit }}{% endif %}
+                            </span>
+                        </div>
+                    {% empty %}
+                        <p class="text-xs font-bold text-emerald-500 text-center py-4 bg-emerald-50 rounded-xl">All stocks are sufficient! ✅</p>
+                    {% endfor %}
+                </div>
+                <a href="#" class="block mt-4 text-[10px] font-bold text-center text-slate-400 hover:text-slate-800 transition-colors">UPDATE INVENTORY</a>
+            </div>
+
+            <a href="{% url 'manager_expenses' %}" class="block bg-slate-50 border-2 border-dashed border-slate-200 p-5 rounded-2xl text-center group hover:border-emerald-300 transition-colors cursor-pointer">
+                <i class="fa-solid fa-receipt text-slate-300 group-hover:text-emerald-400 mb-2 text-xl transition-colors"></i>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider group-hover:text-emerald-600 transition-colors">Record Petty Expense</p>
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

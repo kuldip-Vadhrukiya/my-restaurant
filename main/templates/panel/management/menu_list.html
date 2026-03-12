@@ -1,0 +1,438 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+    .toggle-checkbox:checked+.toggle-label { background-color: #10b981; }
+    .toggle-checkbox:checked+.toggle-label:after { transform: translateX(100%); border-color: white; }
+    .tag-checkbox:checked+div { border-color: #10b981; background-color: #ecfdf5; color: #047857; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Menu Master 🍕</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Manage dishes, pricing, tags, and availability.</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="openCategoryModal()"
+                class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2 active:scale-95">
+                <i class="fa-solid fa-layer-group"></i> Categories
+            </button>
+            <button onclick="openModal()"
+                class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Add New Item
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="p-4 rounded-xl text-sm font-bold {% if message.tags == 'success' %}bg-emerald-100 text-emerald-800{% else %}bg-red-100 text-red-800{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center z-10 relative">
+        <div class="relative w-full md:w-96">
+            <i class="fa-solid fa-search absolute left-4 top-3.5 text-slate-400"></i>
+            <input type="text" id="searchInput" onkeyup="filterAdminTable()" placeholder="Search by item name..."
+                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all">
+        </div>
+        <div class="flex flex-wrap gap-3 w-full md:w-auto">
+            <select id="filterCategory" onchange="filterAdminTable()"
+                class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-600 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                <option value="All">All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <select id="filterStatus" onchange="filterAdminTable()"
+                class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-600 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                <option value="All">All Status</option>
+                <option value="Active">Active Only</option>
+                <option value="Inactive">Out of Stock</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-200">
+                        <th class="p-4 pl-6 w-2/5">Item Details</th>
+                        <th class="p-4">Category</th>
+                        <th class="p-4">Price</th>
+                        <th class="p-4 text-center">Visibility</th>
+                        <th class="p-4 pr-6 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="menuTableBody" class="text-sm text-slate-700 divide-y divide-slate-100">
+                    {% for item in items %}
+                    <tr class="hover:bg-slate-50 transition-colors group menu-row {% if not item.is_available %}opacity-60 grayscale{% endif %}"
+                        data-name="{{ item.name|lower }}" data-category="{{ item.category.id }}"
+                        data-status="{% if item.is_available %}Active{% else %}Inactive{% endif %}">
+
+                        <td class="p-4 pl-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 overflow-hidden">
+                                    {% if item.image %}
+                                    <img src="{{ item.image.url }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                    <i class="fa-solid fa-utensils"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-0.5">
+                                        {% if item.is_jain %}
+                                        <span class="w-4 h-4 rounded bg-amber-100 flex items-center justify-center text-[8px] text-amber-600" title="Jain"><i class="fa-solid fa-leaf"></i></span>
+                                        {% elif item.is_veg %}
+                                        <img src="https://img.icons8.com/color/48/vegetarian-food-symbol.png" class="w-4 h-4">
+                                        {% else %}
+                                        <img src="https://img.icons8.com/color/48/non-vegetarian-food-symbol.png" class="w-4 h-4">
+                                        {% endif %}
+                                        <p class="font-black text-slate-800 leading-tight">{{ item.name }}</p>
+                                    </div>
+                                    <div class="flex gap-1 mt-1.5">
+                                        {% if item.is_bestseller %}<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">⭐ Bestseller</span>{% endif %}
+                                        {% if item.is_spicy %}<span class="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">🌶️ Spicy</span>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4">
+                            <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{{ item.category.name }}</span>
+                        </td>
+                        <td class="p-4 font-black text-emerald-600 text-base">₹{{ item.price }}</td>
+                        <td class="p-4 text-center">
+                            {% if item.is_available %}
+                            <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider">Active</span>
+                            {% else %}
+                            <span class="bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 pr-6 text-right space-x-1.5">
+                            <button onclick="editItem({{ item.id }})"
+                                class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-sm"
+                                title="Edit">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <form method="POST" action="{% url 'menu_management' %}" class="inline"
+                                onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit"
+                                    class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-red-500 hover:bg-red-50 hover:border-red-200 transition shadow-sm"
+                                    title="Delete">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-10 text-slate-400">No items found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="itemModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <h2 class="text-xl font-black text-slate-800" id="modalTitle">Add New Item</h2>
+            <button onclick="closeModal()" class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 shadow-sm transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto modal-scroll bg-white flex-1">
+            <form method="POST" action="{% url 'menu_management' %}" enctype="multipart/form-data" class="space-y-8" id="dbForm">
+                {% csrf_token %}
+                <input type="hidden" name="item_id" id="editItemId">
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">A. Display Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Item Name *</label>
+                            <input type="text" name="name" id="inputName" required placeholder="e.g. Paneer Butter Masala" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                            <textarea name="description" id="inputDesc" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none transition"></textarea>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Upload Photo (Leave blank to keep old photo)</label>
+                            <input type="file" name="image" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">B. Pricing & Category</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Price (₹) *</label>
+                            <input type="number" name="price" id="inputPrice" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Category *</label>
+                            <select name="category" id="inputCategory" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">C. Dietary & Smart Tags</h3>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Dietary Type</label>
+                    <div class="flex gap-3 mb-6">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="dietType" id="dietVeg" value="veg" class="peer sr-only" checked>
+                            <div class="text-center py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 transition">Veg</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="dietType" id="dietJain" value="jain" class="peer sr-only">
+                            <div class="text-center py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:text-amber-700 transition">Jain</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="dietType" id="dietNonVeg" value="nonveg" class="peer sr-only">
+                            <div class="text-center py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:text-red-700 transition">Non-Veg</div>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="checkbox" name="is_bestseller" id="tagBestseller" class="sr-only tag-checkbox">
+                            <div class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition text-center select-none">⭐ Bestseller</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="checkbox" name="is_chef_special" id="tagChef" class="sr-only tag-checkbox">
+                            <div class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition text-center select-none">👨‍🍳 Chef Spl</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="checkbox" name="is_spicy" id="tagSpicy" class="sr-only tag-checkbox">
+                            <div class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition text-center select-none">🌶️ Spicy</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="checkbox" name="is_kids_friendly" id="tagKids" class="sr-only tag-checkbox" checked>
+                            <div class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition text-center select-none">👶 Kids Friendly</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">D. Variants & Add-ons (Customization)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2">Item Variants (e.g. Half, Full)</label>
+                            <div id="variantInputs" class="space-y-2 mb-3"></div>
+                            <button type="button" onclick="addVariantRow()" class="text-[10px] font-black text-emerald-600 uppercase border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition">
+                                <i class="fa-solid fa-plus mr-1"></i> Add Variant
+                            </button>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2">Add-ons (e.g. Extra Cheese)</label>
+                            <div id="addonInputs" class="space-y-2 mb-3"></div>
+                            <button type="button" onclick="addAddonRow()" class="text-[10px] font-black text-blue-600 uppercase border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                                <i class="fa-solid fa-plus mr-1"></i> Add Add-on
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">E. Operational Controls</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-sm text-slate-800">Available to Order?</p>
+                                <p class="text-[10px] text-slate-500">Turn off if out of stock.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="is_available" id="inputAvailable" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </label>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-sm text-slate-800">Est. Prep Time (Min)</p>
+                                <p class="text-[10px] text-slate-500">Used for "Under 15m" filter</p>
+                            </div>
+                            <input type="number" name="prep_time" id="inputPrep" value="15" class="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-6 py-3 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-8 py-3 rounded-xl text-sm font-black text-white bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Save Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="categoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-lg font-black text-slate-800">Manage Categories</h2>
+            <button onclick="closeCategoryModal()" class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 shadow-sm transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="POST" action="{% url 'category_management' %}" class="p-4 bg-slate-50 border-b border-slate-200 flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="is_active" value="on">
+            <input type="hidden" name="sort_order" value="0">
+            <input type="text" name="name" required placeholder="e.g. Navratri Special" class="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none transition">
+            <button type="submit" class="bg-[#0f172a] text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-md hover:bg-slate-800 transition uppercase tracking-widest">Add</button>
+        </form>
+        <div class="p-3 overflow-y-auto max-h-[50vh] modal-scroll space-y-2">
+            {% for cat in categories %}
+            <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                <span class="font-bold text-sm text-slate-800">{{ cat.name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Database Data updated with Variants and Addons
+    const dbItems = {
+        {% for item in items %}
+        "{{ item.id }}": {
+            name: "{{ item.name|escapejs }}",
+            price: "{{ item.price }}",
+            category: "{{ item.category.id }}",
+            desc: "{{ item.description|escapejs }}",
+            is_veg: {{ item.is_veg|yesno:"true,false" }},
+            is_jain: {{ item.is_jain|yesno:"true,false" }},
+            is_available: {{ item.is_available|yesno:"true,false" }},
+            is_bestseller: {{ item.is_bestseller|yesno:"true,false" }},
+            is_chef_special: {{ item.is_chef_special|yesno:"true,false" }},
+            is_spicy: {{ item.is_spicy|yesno:"true,false" }},
+            is_kids_friendly: {{ item.is_kids_friendly|yesno:"true,false" }},
+            prep_time: "{{ item.prep_time }}",
+            variants: [
+                {% for v in item.variants.all %}
+                { name: "{{ v.variant_name|escapejs }}", price: "{{ v.price }}" }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            addons: [
+                {% for a in item.addons.all %}
+                { name: "{{ a.addon_name|escapejs }}", price: "{{ a.price }}" }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    const modal = document.getElementById('itemModal');
+
+    function openModal() {
+        document.getElementById('dbForm').reset();
+        document.getElementById('editItemId').value = '';
+        document.getElementById('modalTitle').innerText = "Add New Item";
+        clearCustomizationInputs();
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() { modal.classList.add('hidden'); }
+    function openCategoryModal() { document.getElementById('categoryModal').classList.remove('hidden'); }
+    function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+
+    function addVariantRow(name = '', price = '') {
+        const div = document.createElement('div');
+        div.className = "flex gap-2 mb-2 animate-fade-in";
+        div.innerHTML = `<input type="text" name="v_names[]" value="${name}" placeholder="Size" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none"><input type="number" name="v_prices[]" value="${price}" placeholder="Price" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none"><button type="button" onclick="this.parentElement.remove()" class="text-red-400"><i class="fa-solid fa-trash"></i></button>`;
+        document.getElementById('variantInputs').appendChild(div);
+    }
+
+    function addAddonRow(name = '', price = '') {
+        const div = document.createElement('div');
+        div.className = "flex gap-2 mb-2 animate-fade-in";
+        div.innerHTML = `<input type="text" name="a_names[]" value="${name}" placeholder="Extra" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none"><input type="number" name="a_prices[]" value="${price}" placeholder="Price" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none"><button type="button" onclick="this.parentElement.remove()" class="text-red-400"><i class="fa-solid fa-trash"></i></button>`;
+        document.getElementById('addonInputs').appendChild(div);
+    }
+
+    function clearCustomizationInputs() {
+        document.getElementById('variantInputs').innerHTML = '';
+        document.getElementById('addonInputs').innerHTML = '';
+    }
+
+    function editItem(id) {
+        let data = dbItems[id];
+        if (!data) return;
+
+        document.getElementById('editItemId').value = id;
+        document.getElementById('inputName').value = data.name;
+        document.getElementById('inputPrice').value = data.price;
+        document.getElementById('inputCategory').value = data.category;
+        document.getElementById('inputDesc').value = data.desc;
+        document.getElementById('inputPrep').value = data.prep_time;
+
+        if (data.is_jain) document.getElementById('dietJain').checked = true;
+        else if (data.is_veg) document.getElementById('dietVeg').checked = true;
+        else document.getElementById('dietNonVeg').checked = true;
+
+        document.getElementById('inputAvailable').checked = data.is_available;
+        document.getElementById('tagBestseller').checked = data.is_bestseller;
+        document.getElementById('tagChef').checked = data.is_chef_special;
+        document.getElementById('tagSpicy').checked = data.is_spicy;
+        document.getElementById('tagKids').checked = data.is_kids_friendly;
+
+        // Correctly populate Variants and Addons
+        clearCustomizationInputs();
+        if(data.variants) data.variants.forEach(v => addVariantRow(v.name, v.price));
+        if(data.addons) data.addons.forEach(a => addAddonRow(a.name, a.price));
+
+        document.getElementById('modalTitle').innerText = "Edit Item";
+        modal.classList.remove('hidden');
+    }
+
+    function filterAdminTable() {
+        let search = document.getElementById('searchInput').value.toLowerCase();
+        let cat = document.getElementById('filterCategory').value;
+        let stat = document.getElementById('filterStatus').value;
+        let rows = document.querySelectorAll('.menu-row');
+
+        rows.forEach(row => {
+            let rName = row.dataset.name;
+            let rCat = row.dataset.category;
+            let rStat = row.dataset.status;
+
+            let matchSearch = search === "" || rName.includes(search);
+            let matchCat = (cat === 'All' || rCat === cat);
+            let matchStat = (stat === 'All' || rStat === stat);
+
+            if (matchSearch && matchCat && matchStat) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

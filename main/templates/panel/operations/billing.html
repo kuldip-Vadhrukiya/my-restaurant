@@ -1,0 +1,298 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 fade-in font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">All Invoices & History 🧾</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Search, void bills, update payment modes, and reprint.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-download"></i> Export Excel
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div>
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm {% if message.tags == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %} flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info"></i> {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-receipt"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoices Today</p>
+                <h3 class="text-2xl font-black text-slate-800">{{ todays_invoices_count }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Collection Today</p>
+                <h3 class="text-2xl font-black text-slate-800">₹{{ total_collection_today }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-ban"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Voided Today</p>
+                <h3 class="text-2xl font-black text-red-600">{{ total_void_today }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" onkeyup="searchInvoices()" placeholder="Search by Invoice # or Table..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="invoiceTable">
+                <thead>
+                    <tr class="bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-200">
+                        <th class="p-4 pl-6">Invoice # & Time</th>
+                        <th class="p-4">Table</th>
+                        <th class="p-4">Total Amount</th>
+                        <th class="p-4">Payment Mode</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 pr-6 text-right">Admin Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
+                    {% for invoice in invoices %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-4 pl-6">
+                            <p class="font-black text-slate-800">#INV-{{ invoice.order_id }}</p>
+                            <p class="text-[10px] font-bold text-slate-400 mt-0.5">{{ invoice.updated_at|date:"d M Y, h:i A" }}</p>
+                        </td>
+                        <td class="p-4 font-bold text-slate-600">
+                            {% if invoice.table %}{{ invoice.table.name }}{% else %}Takeaway{% endif %}
+                        </td>
+                        <td class="p-4 font-black text-slate-800">
+                            ₹{{ invoice.total_amount }}
+                        </td>
+                        <td class="p-4">
+                            {% if invoice.status == 'Cancelled' %}
+                                <span class="text-slate-400 font-bold">-</span>
+                            {% else %}
+                                <span class="px-2 py-1 rounded bg-slate-100 text-[10px] font-bold text-slate-600 flex items-center w-max gap-1">
+                                    <i class="fa-solid {% if 'Cash' in invoice.payment_mode %}fa-money-bill-wave text-emerald-500{% else %}fa-building-columns text-purple-500{% endif %}"></i> 
+                                    {{ invoice.payment_mode|default:"Cash" }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4">
+                            {% if invoice.status == 'Cancelled' %}
+                                <span class="px-2 py-1 rounded bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-ban"></i> Void</span>
+                            {% else %}
+                                <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-check"></i> Paid</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 pr-6 text-right space-x-2">
+                            <button onclick="viewDetails({{ invoice.order_id }})" class="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition" title="View Bill Details">
+                                <i class="fa-solid fa-eye text-xs"></i>
+                            </button>
+                            
+                            {% if invoice.status != 'Cancelled' %}
+                            <button onclick="openModeModal({{ invoice.order_id }}, '{{ invoice.payment_mode }}')" class="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition" title="Change Payment Mode">
+                                <i class="fa-solid fa-money-check-dollar text-xs"></i>
+                            </button>
+                            <form method="POST" action="{% url 'billing' %}" class="inline" onsubmit="return confirm('Are you sure you want to VOID this bill? This will remove the amount from total sales.');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="void">
+                                <input type="hidden" name="order_id" value="{{ invoice.order_id }}">
+                                <button type="submit" class="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 transition" title="Void / Cancel Bill">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-400 font-bold">No completed or voided invoices found yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="modeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800">Update Payment Mode</h2>
+            <button onclick="closeModeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form method="POST" action="{% url 'billing' %}" class="p-6 bg-white space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_mode">
+            <input type="hidden" name="order_id" id="modeOrderId">
+            
+            <p class="text-xs text-slate-500 font-medium">Changing mode for Invoice <span id="modeInvoiceLabel" class="font-black text-slate-800"></span></p>
+
+            <select name="payment_mode" id="currentModeSelect" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none">
+                <option value="Cash">💵 Cash</option>
+                <option value="UPI">📱 UPI / QR</option>
+                <option value="Card">💳 Credit/Debit Card</option>
+                <option value="Split">🌗 Split Payment</option>
+            </select>
+
+            <div class="pt-4 border-t border-slate-100 flex justify-end gap-3 mt-4">
+                <button type="button" onclick="closeModeModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-lg transition">Update Mode</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="receiptModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-dashed border-slate-300 flex justify-between items-center bg-slate-50">
+            <div>
+                <h2 class="text-lg font-black text-slate-800">Digital Receipt</h2>
+                <p class="text-xs font-bold text-slate-500" id="rm-id">#INV-000</p>
+            </div>
+            <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="p-6 bg-white">
+            <div class="flex justify-between items-center mb-4 text-xs font-bold text-slate-500">
+                <span id="rm-date">--</span>
+                <span class="px-2 py-1 bg-slate-100 rounded text-slate-700" id="rm-table">Table --</span>
+            </div>
+
+            <div class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2" id="rm-items">
+                </div>
+
+            <div class="border-t border-dashed border-slate-300 pt-4 space-y-2 text-sm font-bold text-slate-600">
+                <div class="flex justify-between"><span>Subtotal</span><span id="rm-sub">₹0</span></div>
+                <div class="flex justify-between text-xs text-slate-400"><span>GST / Taxes</span><span id="rm-tax">₹0</span></div>
+                <div class="flex justify-between text-lg font-black text-slate-900 pt-2 border-t border-slate-100">
+                    <span>Grand Total</span><span id="rm-total">₹0</span>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 uppercase tracking-widest" id="rm-mode">PAID VIA --</span>
+            </div>
+        </div>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+            <a id="rm-print-btn" href="#" target="_blank" class="flex-1 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition flex justify-center items-center">
+                <i class="fa-solid fa-print mr-2"></i> Thermal Print
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Search Functionality
+    function searchInvoices() {
+        let input = document.getElementById("searchInput").value.toUpperCase();
+        let table = document.getElementById("invoiceTable");
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let tdId = tr[i].getElementsByTagName("td")[0];
+            let tdTable = tr[i].getElementsByTagName("td")[1];
+            if (tdId || tdTable) {
+                let txtValueId = tdId.textContent || tdId.innerText;
+                let txtValueTable = tdTable.textContent || tdTable.innerText;
+                if (txtValueId.toUpperCase().indexOf(input) > -1 || txtValueTable.toUpperCase().indexOf(input) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }       
+        }
+    }
+
+    // 2. Payment Mode Modal Logic
+    function openModeModal(orderId, currentMode) {
+        document.getElementById('modeOrderId').value = orderId;
+        document.getElementById('modeInvoiceLabel').innerText = "#INV-" + orderId;
+        
+        let select = document.getElementById('currentModeSelect');
+        for(let i=0; i<select.options.length; i++) {
+            if(select.options[i].value.includes(currentMode)) {
+                select.selectedIndex = i;
+                break;
+            }
+        }
+        document.getElementById('modeModal').classList.remove('hidden');
+    }
+
+    function closeModeModal() {
+        document.getElementById('modeModal').classList.add('hidden');
+    }
+
+    // 3. Receipt Modal (API Fetch) Logic
+    function viewDetails(orderId) {
+        document.getElementById('receiptModal').classList.remove('hidden');
+        document.getElementById('rm-items').innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin"></i> Fetching Bill Details...</p>';
+
+        fetch(`/api/invoice/${orderId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('rm-id').innerText = "#INV-" + data.order_id;
+                    document.getElementById('rm-date').innerText = data.date;
+                    document.getElementById('rm-table').innerText = "Table " + data.table;
+                    document.getElementById('rm-sub').innerText = "₹" + data.subtotal.toFixed(2);
+                    document.getElementById('rm-tax').innerText = "₹" + data.tax.toFixed(2);
+                    document.getElementById('rm-total').innerText = "₹" + data.grand_total.toFixed(2);
+                    document.getElementById('rm-mode').innerText = "PAID VIA " + data.mode;
+                    
+                    // Set print button link dynamically
+                    document.getElementById('rm-print-btn').href = `/cashier/print/${data.order_id}/`;
+
+                    let itemsHtml = '';
+                    data.items.forEach(item => {
+                        itemsHtml += `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-800">${item.name}</p>
+                                    <p class="text-[11px] text-slate-500">${item.qty} x ₹${item.price.toFixed(2)}</p>
+                                </div>
+                                <p class="text-sm font-black text-slate-800">₹${item.total.toFixed(2)}</p>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('rm-items').innerHTML = itemsHtml;
+                } else {
+                    document.getElementById('rm-items').innerHTML = '<p class="text-center text-red-400 text-xs py-4">Failed to load data.</p>';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('rm-items').innerHTML = '<p class="text-center text-red-400 text-xs py-4">Network Error.</p>';
+            });
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('receiptModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

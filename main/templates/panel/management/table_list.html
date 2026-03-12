@@ -1,0 +1,299 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Table & Zone Master 🪑</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Manage floor plan, live status, and generate QR codes.</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="downloadAllQRs()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-qrcode"></i> Download All QRs
+            </button>
+            <button onclick="openTableModal()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Add New Table
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4 space-y-2">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2
+                    {% if message.tags == 'error' %} bg-red-50 text-red-600 border border-red-100
+                    {% else %} bg-emerald-50 text-emerald-600 border border-emerald-100 {% endif %}">
+                    {% if message.tags == 'error' %}
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                    {% else %}
+                        <i class="fa-solid fa-circle-check text-lg"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-chair"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Tables</p>
+                <h3 class="text-xl font-black text-slate-800">{{ stats.total }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><i class="fa-solid fa-utensils"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Occupied (Live)</p>
+                <h3 class="text-xl font-black text-red-600">{{ stats.occupied }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-check-double"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vacant</p>
+                <h3 class="text-xl font-black text-emerald-600">{{ stats.vacant }}</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-users"></i></div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Seating</p>
+                <h3 class="text-xl font-black text-purple-700">{{ stats.capacity }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center z-10 relative">
+        <div class="relative w-full md:w-80">
+            <i class="fa-solid fa-search absolute left-4 top-3.5 text-slate-400"></i>
+            <input type="text" id="searchTable" onkeyup="renderTables()" placeholder="Search table (e.g. Table 01)..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+        </div>
+
+        <div class="flex gap-3 w-full md:w-auto overflow-x-auto no-scrollbar">
+            <select id="filterStatus" onchange="renderTables()" class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-600 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="All">All Status</option>
+                <option value="Vacant">🟢 Vacant</option>
+                <option value="Occupied">🔴 Occupied</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" id="tableGrid">
+        </div>
+
+</div>
+
+<div id="tableModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800" id="modalTitle">Setup New Table</h2>
+            <button onclick="closeTableModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form method="POST" action="{% url 'table_management' %}">
+            {% csrf_token %}
+            <div class="p-6 bg-white space-y-5">
+                <input type="hidden" name="table_id" id="tableId">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Table Name/Number *</label>
+                    <input type="text" name="name" id="tName" required placeholder="e.g. Table 05" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold uppercase tracking-wider">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Seating Capacity *</label>
+                        <select name="capacity" id="tCapacity" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="2">2 Seater</option>
+                            <option value="4" selected>4 Seater</option>
+                            <option value="6">6 Seater</option>
+                            <option value="8">8 Seater (Family)</option>
+                            <option value="12">12 Seater (Party)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Zone/Area</label>
+                        <select name="zone" id="tZone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="AC Hall">AC Hall</option>
+                            <option value="Garden Area">Garden Area</option>
+                            <option value="Rooftop">Rooftop</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-start gap-3 mt-2">
+                    <i class="fa-solid fa-qrcode text-emerald-600 mt-0.5 text-lg"></i>
+                    <div>
+                        <p class="text-xs font-bold text-emerald-800">Auto QR Generation</p>
+                        <p class="text-[10px] text-emerald-600 mt-0.5">A unique QR code will be generated automatically upon saving.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" onclick="closeTableModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-lg transition">Save Table</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="qrGeneratorBox" style="display:none;"></div>
+
+<script>
+    // 1. INJECT REAL DATABASE DATA INTO JAVASCRIPT
+    const tablesData = [
+        {% for table in tables %}
+        { 
+            id: {{ table.id }}, 
+            name: "{{ table.name|escapejs }}", 
+            capacity: {{ table.capacity }}, 
+            zone: "{{ table.zone|escapejs }}", 
+            status: "{{ table.status }}" 
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const statusConfig = {
+        'Vacant': { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: 'fa-check', dot: 'bg-emerald-500' },
+        'Occupied': { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', icon: 'fa-fire', dot: 'bg-red-500 animate-ping' }
+    };
+
+    // 2. RENDER GRID
+    function renderTables() {
+        const grid = document.getElementById('tableGrid');
+        const searchTerm = document.getElementById('searchTable').value.toLowerCase();
+        const statusFilter = document.getElementById('filterStatus').value;
+        
+        grid.innerHTML = '';
+
+        if(tablesData.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold">No tables found in database. Add a new table to start!</div>`;
+            return;
+        }
+
+        tablesData.forEach(table => {
+            if (!table.name.toLowerCase().includes(searchTerm)) return;
+            if (statusFilter !== 'All' && table.status !== statusFilter) return;
+
+            let config = statusConfig[table.status] || statusConfig['Vacant'];
+
+            let card = `
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col overflow-hidden fade-in relative group">
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-1">
+                    <button onclick="editTable(${table.id})" class="w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-blue-600 shadow-sm" title="Edit Table"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <a href="/manage/tables/delete/${table.id}/" onclick="return confirm('Delete this table permanently?')" class="w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-600 shadow-sm" title="Delete Table"><i class="fa-solid fa-trash text-[10px]"></i></a>
+                </div>
+
+                <div class="${config.bg} p-4 border-b ${config.border} flex flex-col items-center justify-center text-center relative h-24">
+                    <div class="absolute top-3 left-3 flex items-center gap-1">
+                        <span class="relative flex h-2 w-2">
+                          <span class="${table.status === 'Occupied' ? 'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ' + config.dot : 'hidden'}"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 ${config.dot}"></span>
+                        </span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider ${config.text}">${table.status}</span>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">${table.name}</h3>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">${table.zone}</p>
+                </div>
+
+                <div class="p-4 flex-1 flex flex-col justify-between bg-white">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-xs font-bold text-slate-500 flex items-center gap-1"><i class="fa-solid fa-users"></i> Seats</span>
+                        <span class="text-sm font-black text-slate-800">${table.capacity}</span>
+                    </div>
+                    <button onclick="downloadQR('${table.name}')" class="w-full py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-900 hover:text-white transition flex items-center justify-center gap-2 border border-slate-200">
+                        <i class="fa-solid fa-qrcode"></i> Get QR
+                    </button>
+                </div>
+            </div>`;
+            grid.innerHTML += card;
+        });
+    }
+
+    // 3. MODAL LOGIC
+    const modal = document.getElementById('tableModal');
+    
+    function openTableModal() {
+        document.getElementById('tableId').value = '';
+        document.getElementById('tName').value = '';
+        document.getElementById('tCapacity').value = '4'; // default
+        document.getElementById('modalTitle').innerText = "Setup New Table";
+        modal.classList.remove('hidden');
+    }
+
+    function closeTableModal() { modal.classList.add('hidden'); }
+
+    function editTable(id) {
+        let table = tablesData.find(t => t.id === id);
+        if(!table) return;
+
+        document.getElementById('tableId').value = table.id;
+        document.getElementById('tName').value = table.name;
+        document.getElementById('tCapacity').value = table.capacity;
+        
+        let zoneSelect = document.getElementById('tZone');
+        for(let i=0; i < zoneSelect.options.length; i++) {
+            if(zoneSelect.options[i].value === table.zone) {
+                zoneSelect.selectedIndex = i;
+                break;
+            }
+        }
+        
+        document.getElementById('modalTitle').innerText = "Edit: " + table.name;
+        modal.classList.remove('hidden');
+    }
+
+    // 4. THE MAGIC: REAL QR CODE GENERATOR (Points to your live menu)
+    function downloadQR(tableName) {
+        let orderUrl = window.location.origin + "{% url 'menu' %}?table=" + encodeURIComponent(tableName);
+        let qrBox = document.getElementById("qrGeneratorBox");
+        qrBox.innerHTML = ""; 
+
+        new QRCode(qrBox, {
+            text: orderUrl,
+            width: 500, 
+            height: 500,
+            colorDark : "#0f172a", 
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        setTimeout(() => {
+            let canvas = qrBox.querySelector('canvas');
+            if(canvas) {
+                let imgData = canvas.toDataURL("image/png");
+                let link = document.createElement('a');
+                link.href = imgData;
+                link.download = `QR_${tableName.replace(' ', '_')}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }, 300);
+    }
+
+    function downloadAllQRs() {
+        alert("To download all QRs, click 'Get QR' on individual tables for now.");
+    }
+
+    // Init
+    document.addEventListener("DOMContentLoaded", renderTables);
+</script>
+{% endblock %}

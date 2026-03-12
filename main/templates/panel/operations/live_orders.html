@@ -1,0 +1,114 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .kanban-col::-webkit-scrollbar { width: 4px; }
+    .kanban-col::-webkit-scrollbar-track { background: transparent; }
+    .kanban-col::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .card-enter { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-15px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+</style>
+
+<div class="h-full flex flex-col font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 flex-shrink-0">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center">
+                Live Orders 
+                <span class="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded uppercase tracking-widest font-black ml-3 border border-red-200 shadow-sm animate-pulse flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Live Sync
+                </span>
+            </h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Front-desk order management and billing control.</p>
+        </div>
+        
+        <div class="flex gap-3 overflow-x-auto no-scrollbar">
+            <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl flex flex-col justify-center shadow-sm min-w-[120px]">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Unpaid Value</span>
+                <span class="text-sm font-black text-slate-800">₹{{ unpaid_value }}</span>
+            </div>
+            <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl flex flex-col justify-center shadow-sm min-w-[120px]">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Active Tables</span>
+                <span class="text-sm font-black text-emerald-600">{{ active_tables_count }}</span>
+            </div>
+            <button onclick="window.location.reload()" class="bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-800 transition active:scale-95 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-rotate-right"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm {% if message.tags == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4">
+
+        <div class="bg-slate-50 rounded-2xl flex flex-col border border-slate-200 shadow-inner">
+            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl shadow-[0_4px_10px_rgba(0,0,0,0.02)] z-10">
+                <h3 class="font-bold text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                    </span>
+                    New Requests
+                </h3>
+                <span class="bg-red-100 text-red-700 text-xs font-black px-2 py-0.5 rounded-lg">{{ count_pending }}</span>
+            </div>
+            <div class="p-3 flex-1 overflow-y-auto kanban-col space-y-3">
+                {% for order in pending_orders %}
+                    {% include 'panel/operations/partials/order_card.html' with order=order col='pending' %}
+                {% empty %}
+                    <p class="text-center text-xs text-slate-400 font-bold mt-4">No new requests</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-orange-50/30 rounded-2xl flex flex-col border border-orange-100 shadow-inner">
+            <div class="p-4 border-b border-orange-100 flex justify-between items-center bg-white rounded-t-2xl shadow-[0_4px_10px_rgba(0,0,0,0.02)] z-10">
+                <h3 class="font-bold text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-fire-burner text-orange-500"></i> In Kitchen
+                </h3>
+                <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg">{{ count_kitchen }}</span>
+            </div>
+            <div class="p-3 flex-1 overflow-y-auto kanban-col space-y-3">
+                {% for order in kitchen_orders %}
+                    {% include 'panel/operations/partials/order_card.html' with order=order col='kitchen' %}
+                {% empty %}
+                    <p class="text-center text-xs text-slate-400 font-bold mt-4">Kitchen is clear</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-emerald-50/30 rounded-2xl flex flex-col border border-emerald-100 shadow-inner">
+            <div class="p-4 border-b border-emerald-100 flex justify-between items-center bg-white rounded-t-2xl shadow-[0_4px_10px_rgba(0,0,0,0.02)] z-10">
+                <h3 class="font-bold text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-emerald-500"></i> Ready to Bill
+                </h3>
+                <span class="bg-emerald-100 text-emerald-700 text-xs font-black px-2 py-0.5 rounded-lg">{{ count_ready }}</span>
+            </div>
+            <div class="p-3 flex-1 overflow-y-auto kanban-col space-y-3">
+                {% for order in ready_orders %}
+                    {% include 'panel/operations/partials/order_card.html' with order=order col='ready' %}
+                {% empty %}
+                    <p class="text-center text-xs text-slate-400 font-bold mt-4">No bills pending</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Auto Refresh to catch new KOTs from customers
+    setTimeout(() => {
+        window.location.reload();
+    }, 15000); // 15 seconds
+</script>
+{% endblock %}

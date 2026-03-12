@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login | Rajkot Rasoi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            DEFAULT: '#059669',
+                            dark: '#047857'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 flex items-center justify-center font-sans">
+
+    <!-- CARD -->
+    <div class="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 animate-fade-in">
+
+        <!-- LOGO -->
+        <div class="text-center mb-6">
+            <div class="mx-auto w-14 h-14 flex items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow">
+                <i class="fa-solid fa-user-shield text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mt-3">Admin Panel</h1>
+            <p class="text-sm text-gray-500">Rajkot Rasoi Management</p>
+        </div>
+
+        <!-- ERROR -->
+        {% if error %}
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- FORM -->
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <!-- USERNAME -->
+            <div>
+                <label class="text-sm font-medium text-gray-600">Username</label>
+                <div class="mt-1 relative">
+                    <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input
+                        type="text"
+                        name="username"
+                        required
+                        placeholder="Enter username"
+                        class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                </div>
+            </div>
+
+            <!-- PASSWORD -->
+            <div>
+                <label class="text-sm font-medium text-gray-600">Password</label>
+                <div class="mt-1 relative">
+                    <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <div class="mt-1 relative">
+    <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+
+    <input
+        id="passwordInput"
+        type="password"
+        name="password"
+        required
+        placeholder="Enter password"
+        class="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+
+    <!-- SHOW / HIDE ICON -->
+    <button
+        type="button"
+        onclick="togglePassword()"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600 transition">
+        <i id="eyeIcon" class="fa-solid fa-eye"></i>
+    </button>
+</div>
+
+                </div>
+            </div>
+
+            <!-- BUTTON -->
+            <button
+                type="submit"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5">
+                <i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>
+                Login Securely
+            </button>
+        </form>
+
+        <!-- FOOTER -->
+        <div class="mt-6 text-center text-xs text-gray-400">
+            © {{ now|default:"2026" }} Rajkot Rasoi · Admin Only
+        </div>
+
+    </div>
+<script>
+function togglePassword() {
+    const input = document.getElementById("passwordInput");
+    const icon = document.getElementById("eyeIcon");
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    }
+}
+</script>
+
+</body>
+</html>

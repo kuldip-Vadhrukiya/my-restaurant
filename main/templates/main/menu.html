@@ -1,0 +1,624 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    html { scroll-behavior: smooth; }
+    
+    @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .pulse-animation { animation: pulse-green 2s infinite; }
+
+    @keyframes slide-up {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
+    
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+    
+    @keyframes slide-down { 
+        from { opacity: 0; transform: translateY(-20px); } 
+        to { opacity: 1; transform: translateY(0); } 
+    }
+    .slide-down { animation: slide-down 0.3s ease-out forwards; }
+
+    .custom-radio:checked + div { border-color: #10b981; background-color: #ecfdf5; }
+    .custom-radio:checked + div .radio-dot { background-color: #10b981; border-color: #10b981; }
+
+    #cartDrawer { transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+</style>
+
+<body class="bg-gray-50 pb-32 font-sans">
+
+    <div class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
+        <div class="px-4 py-3 max-w-7xl mx-auto flex gap-3 items-center">
+            <div class="flex-1 relative">
+                <i class="fa-solid fa-search absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+                <input type="text" id="menuSearch" onkeyup="applyAdvancedFilters()" placeholder="Search dishes..." class="w-full bg-gray-100 border-none rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+            </div>
+            <button onclick="openFilterModal()" class="bg-gray-100 w-11 h-11 rounded-xl flex items-center justify-center text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 shadow-sm"><i class="fa-solid fa-sliders text-lg"></i></button>
+            
+            <button onclick="openServiceModal()" class="bg-gray-100 w-11 h-11 rounded-xl flex items-center justify-center text-gray-600 hover:bg-amber-50 hover:text-amber-600 shadow-sm relative">
+                <i class="fa-solid fa-bell text-lg"></i>
+                <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+            </button>
+        </div>
+        <div class="flex overflow-x-auto no-scrollbar py-2 px-4 gap-3 max-w-7xl mx-auto pb-3">
+            <button onclick="resetFilters()" class="flex-shrink-0 bg-slate-900 text-white px-5 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2">🍽️ All</button>
+            
+            {% for category in categories %}
+                {% if category.items.all %}
+                <button onclick="scrollToSection('cat-{{ category.id }}')" class="flex-shrink-0 bg-white border border-gray-200 text-gray-600 px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap hover:bg-emerald-50 transition-colors">
+                    {{ category.name }}
+                </button>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="p-4 space-y-12 max-w-7xl mx-auto">
+        {% for category in categories %}
+        {% if category.items.all %}
+        <div id="cat-{{ category.id }}" class="category-section">
+            <h3 class="font-black text-lg text-gray-900 flex items-center gap-2 mb-6 pt-6 border-t border-gray-100">
+                {{ category.name }} 
+                <span class="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">{{ category.items.count }} Items</span>
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {% for item in category.items.all %}
+                
+                <div class="menu-card bg-white p-4 rounded-[20px] shadow-sm border border-gray-100 relative hover:shadow-md transition-all {% if not item.is_available %}opacity-50 grayscale{% endif %}" 
+                     id="item-{{ item.id }}"
+                     data-veg="{{ item.is_veg|yesno:'true,false' }}"
+                     data-jain="{{ item.is_jain|yesno:'true,false' }}"
+                     data-nonveg="{% if not item.is_veg and not item.is_jain %}true{% else %}false{% endif %}"
+                     data-bestseller="{{ item.is_bestseller|yesno:'true,false' }}"
+                     data-chef="{{ item.is_chef_special|yesno:'true,false' }}"
+                     data-spicy="{{ item.is_spicy|yesno:'true,false' }}"
+                     data-kids="{{ item.is_kids_friendly|yesno:'true,false' }}"
+                     data-price="{{ item.price }}"
+                     data-preptime="{{ item.prep_time }}">
+                    
+                    <div class="flex justify-between gap-4 h-full">
+                        <div class="flex-1 flex flex-col">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    {% if item.is_jain %}
+                                        <span class="text-amber-500 text-[10px]" title="Jain"><i class="fa-solid fa-leaf"></i></span>
+                                    {% elif item.is_veg %}
+                                        <img src="https://img.icons8.com/color/48/vegetarian-food-symbol.png" class="w-4 h-4">
+                                    {% else %}
+                                        <img src="https://img.icons8.com/color/48/non-vegetarian-food-symbol.png" class="w-4 h-4">
+                                    {% endif %}
+                                    {% if item.is_bestseller %}<span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-200">⭐ Bestseller</span>{% endif %}
+                                    {% if item.is_chef_special %}<span class="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-blue-200">👨‍🍳 Chef Special</span>{% endif %}
+                                </div>
+                                <h3 class="item-title font-bold text-base text-gray-800 leading-tight mb-1">{{ item.name }}</h3>
+                                
+                                <div class="flex items-center gap-2 mb-2">
+                                    <button onclick="openRatingModal({{ item.id }}, '{{ item.name|escapejs }}')" class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-emerald-200 hover:bg-emerald-200 transition-colors">
+                                        4.5 <i class="fa-solid fa-star text-[8px]"></i>
+                                    </button>
+                                    <span class="text-[10px] text-gray-400 font-medium">(120+) Ratings</span>
+                                </div>
+
+                                {% if item.description %}
+                                    <p class="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{{ item.description }}</p>
+                                {% endif %}
+                                
+                                <button onclick="cycleSpice(this, '{{ item.id }}')" class="mt-2 bg-gray-50 border border-gray-200 text-gray-600 text-[9px] font-bold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-gray-100 w-max">
+                                    <i class="fa-solid fa-leaf text-green-600 spice-icon"></i> 
+                                    <span class="spice-text">Regular</span>
+                                </button>
+                            </div>
+                            
+                            <div class="mt-auto pt-3 flex items-center justify-between">
+                                <div class="font-black text-sm text-green-700 item-price">₹{{ item.price }}</div>
+                                <div class="text-[9px] text-gray-500 font-bold flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
+                                    <i class="fa-regular fa-clock text-gray-400"></i> {{ item.prep_time }} Min
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative flex flex-col items-center gap-2 w-28 flex-shrink-0">
+                            <div class="w-28 h-24 rounded-xl overflow-hidden bg-gray-100 shadow-sm">
+                                {% if item.image %}
+                                    <img src="{{ item.image.url }}" class="w-full h-full object-cover item-image">
+                                {% else %}
+                                    <div class="w-full h-full flex items-center justify-center text-gray-300"><i class="fa-solid fa-utensils text-2xl"></i></div>
+                                {% endif %}
+                            </div>
+                            <input type="text" id="note-{{ item.id }}" class="w-full text-[10px] bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-600 placeholder-gray-400" placeholder="Note..." onchange="updateItemNoteInCart('{{ item.id }}', this.value)">
+                            
+                            <div class="add-btn-wrapper w-full h-8 shadow-sm bg-white rounded-lg border border-emerald-100 relative overflow-hidden">
+                                {% if item.is_available %}
+                                    <button onclick="addToCart('{{ item.id }}', '{{ item.name|escapejs }}', {{ item.price }}, '{% if item.image %}{{ item.image.url }}{% endif %}', '{% if item.is_veg %}veg{% else %}non-veg{% endif %}')" class="w-full h-full text-emerald-700 font-black text-xs uppercase hover:bg-emerald-50 rounded-lg transition-colors absolute inset-0 z-10 bg-white add-btn-front">ADD</button>
+                                    <div class="w-full h-full flex items-center justify-between bg-slate-900 text-white px-2 rounded-lg absolute inset-0 z-0 opacity-0 transition-opacity duration-200 counter-box">
+                                        <button class="text-sm font-bold w-6 h-full flex items-center justify-center" onclick="updateMenuCount('{{ item.id }}', -1)">-</button>
+                                        <span class="text-xs font-bold count-val">1</span>
+                                        <button class="text-sm font-bold w-6 h-full flex items-center justify-center" onclick="updateMenuCount('{{ item.id }}', 1)">+</button>
+                                    </div>
+                                {% else %}
+                                    <div class="w-full h-full flex items-center justify-center text-[9px] font-black text-red-500 bg-red-50 uppercase tracking-widest">Out of Stock</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <div id="floatingCart" onclick="openCartDrawer()" class="fixed bottom-4 left-3 right-3 md:bottom-6 md:left-4 md:right-4 bg-slate-900 rounded-xl p-3 md:p-4 shadow-2xl shadow-slate-900/40 z-[55] flex items-center justify-between text-white transform translate-y-32 transition-transform duration-300 border border-slate-800 cursor-pointer max-w-7xl mx-auto">
+        <div class="flex flex-col leading-none pl-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1"><span id="cartCount">0</span> Items Added</span>
+            <span class="text-xl font-black tracking-tight" id="cartTotal">₹0</span>
+        </div>
+        <button class="bg-emerald-500 text-slate-900 px-5 py-2.5 rounded-lg text-xs font-black uppercase flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.4)] whitespace-nowrap">
+            View Order <i class="fa-solid fa-chevron-right text-[10px]"></i>
+        </button>
+    </div>
+
+    <div id="cartDrawer" class="fixed bottom-0 left-0 right-0 bg-white z-[60] rounded-t-[30px] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] max-w-7xl mx-auto flex flex-col h-[85vh] transform translate-y-full">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[30px]">
+            <div>
+                <h2 class="text-xl font-black text-gray-900">Your Cart</h2>
+                <p class="text-xs text-gray-400 font-bold" id="drawerItemCount">0 items selected</p>
+            </div>
+            <button onclick="closeCartDrawer()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-6" id="cartDrawerContent"></div>
+        <div class="p-5 border-t border-gray-100 bg-gray-50 pb-8">
+            <div class="flex justify-between items-end mb-4">
+                <span class="text-sm font-bold text-gray-500">Grand Total</span>
+                <span class="text-2xl font-black text-emerald-700" id="drawerTotal">₹0</span>
+            </div>
+            <button onclick="placeOrder()" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-transform flex justify-between px-6 items-center">
+                <span>Place Order</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="choiceDrawer" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-end sm:items-center justify-center transition-transform duration-300 transform translate-y-full">
+        <div class="bg-white w-full sm:w-[450px] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-xl text-slate-800" id="choiceItemName">Customize</h3>
+                <button onclick="closeChoiceDrawer()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div id="variantSection" class="mb-6">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choose Size</p>
+                <div id="variantOptions" class="space-y-2"></div>
+            </div>
+            <div class="flex items-center justify-between mt-8 border-t pt-6">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase">Final Price</p>
+                    <span class="text-2xl font-black text-emerald-600" id="finalPopupPrice">₹0</span>
+                </div>
+                <button id="addVariantToCartBtn" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-transform">
+                    Add Item
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ratingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[120] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
+            <button onclick="closeRatingModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="text-center mb-6 mt-2">
+                <div class="w-12 h-12 bg-amber-50 rounded-full mx-auto flex items-center justify-center mb-3 border border-amber-100">
+                    <i class="fa-solid fa-star text-amber-500 text-xl"></i>
+                </div>
+                <h3 class="font-black text-xl text-slate-800" id="ratingItemName">Item Name</h3>
+                <p class="text-xs text-gray-500 mt-1 font-medium">How was your experience with this dish?</p>
+            </div>
+            <div class="flex justify-center gap-2 mb-8" id="starContainer">
+                <button class="star-btn text-gray-300 text-3xl hover:scale-110 transition-transform" onclick="setRating(1)"><i class="fa-solid fa-star"></i></button>
+                <button class="star-btn text-gray-300 text-3xl hover:scale-110 transition-transform" onclick="setRating(2)"><i class="fa-solid fa-star"></i></button>
+                <button class="star-btn text-gray-300 text-3xl hover:scale-110 transition-transform" onclick="setRating(3)"><i class="fa-solid fa-star"></i></button>
+                <button class="star-btn text-gray-300 text-3xl hover:scale-110 transition-transform" onclick="setRating(4)"><i class="fa-solid fa-star"></i></button>
+                <button class="star-btn text-gray-300 text-3xl hover:scale-110 transition-transform" onclick="setRating(5)"><i class="fa-solid fa-star"></i></button>
+            </div>
+            <input type="hidden" id="currentRatingItemId">
+            <button onclick="submitRating()" class="w-full py-3.5 bg-slate-900 text-white rounded-xl font-black text-sm shadow-lg uppercase tracking-widest">Submit Rating</button>
+        </div>
+    </div>
+
+    <div id="filterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full sm:w-[450px] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-xl text-slate-800">Filters</h3>
+                <button onclick="resetFilters()" class="text-xs font-bold text-emerald-600 underline">Reset All</button>
+            </div>
+            <div class="mb-6">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Dietary Type</p>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setDietary('veg')" id="btn-veg" class="diet-opt p-3 border border-slate-100 rounded-xl text-[10px] font-bold">Veg</button>
+                    <button onclick="setDietary('jain')" id="btn-jain" class="diet-opt p-3 border border-slate-100 rounded-xl text-[10px] font-bold">Jain</button>
+                    <button onclick="setDietary('nonveg')" id="btn-nonveg" class="diet-opt p-3 border border-slate-100 rounded-xl text-[10px] font-bold">Non-Veg</button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Refine Search</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="togglePreference('bestseller')" id="btn-bestseller" class="pref-opt px-4 py-2 border border-slate-100 rounded-full text-[10px] font-bold">⭐ Bestseller</button>
+                    <button onclick="togglePreference('chef')" id="btn-chef" class="pref-opt px-4 py-2 border border-slate-100 rounded-full text-[10px] font-bold">👨‍🍳 Chef Special</button>
+                    <button onclick="togglePreference('spicy')" id="btn-spicy" class="pref-opt px-4 py-2 border border-slate-100 rounded-full text-[10px] font-bold">🌶️ Spicy</button>
+                    <button onclick="togglePreference('kids')" id="btn-kids" class="pref-opt px-4 py-2 border border-slate-100 rounded-full text-[10px] font-bold">👶 Kids Friendly</button>
+                    <button onclick="togglePreference('quick')" id="btn-quick" class="pref-opt px-4 py-2 border border-slate-100 rounded-full text-[10px] font-bold">⏱️ Under 15m</button>
+                </div>
+            </div>
+            <div class="mb-8">
+                <div class="flex justify-between items-center mb-3">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Max Price</p>
+                    <span class="text-sm font-black text-emerald-600">₹<span id="priceRangeVal">1000</span></span>
+                </div>
+                <input type="range" id="priceRange" min="50" max="1000" step="10" value="1000" oninput="updatePriceLabel(this.value)" class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeFilterModal()" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold text-sm">Cancel</button>
+                <button onclick="applyAdvancedFilters(); closeFilterModal();" class="flex-2 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl px-10">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="serviceModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[120] hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full sm:w-[350px] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform translate-y-full" id="serviceModalContent">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-xl text-slate-800"><i class="fa-solid fa-bell text-amber-500 mr-2"></i> Service Request</h3>
+                <button onclick="closeServiceModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="callService('water')" class="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-blue-100 transition-colors active:scale-95">
+                    <i class="fa-solid fa-droplet text-2xl text-blue-500"></i>
+                    <span class="text-xs font-bold text-blue-700">Water</span>
+                </button>
+                <button onclick="callService('clean')" class="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-cyan-100 transition-colors active:scale-95">
+                    <i class="fa-solid fa-broom text-2xl text-cyan-500"></i>
+                    <span class="text-xs font-bold text-cyan-700">Clean Table</span>
+                </button>
+                <button onclick="callService('waiter')" class="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-amber-100 transition-colors active:scale-95">
+                    <i class="fa-solid fa-user-tie text-2xl text-amber-500"></i>
+                    <span class="text-xs font-bold text-amber-700">Call Waiter</span>
+                </button>
+                <button onclick="callService('bill')" class="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-red-100 transition-colors active:scale-95">
+                    <i class="fa-solid fa-file-invoice-dollar text-2xl text-red-500"></i>
+                    <span class="text-xs font-bold text-red-700">Request Bill</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let cart = {}; 
+    let currentPopupItem = null;
+
+// --- 1. CHOICE DRAWER LOGIC (Variants ke liye) ---
+    function openChoiceDrawer(id, name, price, image, typeIcon, data) {
+        currentPopupItem = { id, name, price, image, typeIcon };
+        document.getElementById('choiceItemName').innerText = name;
+        const drawer = document.getElementById('choiceDrawer');
+        drawer.classList.remove('hidden');
+        setTimeout(() => drawer.classList.remove('translate-y-full'), 10);
+        
+        const varOpt = document.getElementById('variantOptions');
+        varOpt.innerHTML = '';
+        if(data.variants && data.variants.length > 0) {
+            data.variants.forEach((v, idx) => {
+                varOpt.innerHTML += `
+                    <label class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 mb-2 cursor-pointer hover:border-emerald-500 transition-all">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="variant_choice" value="${v.name}" data-price="${v.price}" class="w-4 h-4 accent-emerald-500" ${idx === 0 ? 'checked' : ''} onchange="updatePopupPrice()">
+                            <span class="text-sm font-bold">${v.name}</span>
+                        </div>
+                        <span class="text-sm font-black">₹${v.price}</span>
+                    </label>`;
+            });
+        }
+        updatePopupPrice();
+    }
+
+    function updatePopupPrice() {
+        const selected = document.querySelector('input[name="variant_choice"]:checked');
+        const price = selected ? selected.dataset.price : currentPopupItem.price;
+        document.getElementById('finalPopupPrice').innerText = '₹' + price;
+    }
+
+    function closeChoiceDrawer() {
+        const drawer = document.getElementById('choiceDrawer');
+        drawer.classList.add('translate-y-full');
+        setTimeout(() => drawer.classList.add('hidden'), 300);
+    }
+
+    document.getElementById('addVariantToCartBtn').onclick = function() {
+        const selected = document.querySelector('input[name="variant_choice"]:checked');
+        const vName = selected ? selected.value : 'Regular';
+        const vPrice = selected ? parseFloat(selected.dataset.price) : currentPopupItem.price;
+        proceedToCart(currentPopupItem.id, currentPopupItem.name, vPrice, currentPopupItem.image, currentPopupItem.typeIcon, vName);
+        closeChoiceDrawer();
+    };
+
+
+    // --- CART CORE LOGIC ---
+    function addToCart(id, name, price, image, typeIcon) {
+        fetch(`/api/get-item-customization/${id}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.has_variants) {
+                openChoiceDrawer(id, name, price, image, typeIcon, data);
+            } else {
+                proceedToCart(id, name, price, image, typeIcon, 'Regular');
+            }
+        })
+        .catch(err => {
+            proceedToCart(id, name, price, image, typeIcon, 'Regular');
+        });
+    }
+
+    function proceedToCart(id, name, price, image, typeIcon, variant) {
+        let note = document.getElementById(`note-${id}`) ? document.getElementById(`note-${id}`).value : '';
+        let spiceBtn = document.getElementById(`item-${id}`).querySelector('.spice-text');
+        let spice = spiceBtn ? spiceBtn.innerText : 'Regular';
+        
+        // 🌟 SMART KEY: ID + Variant + Spice + Note (In charo ke milne se unique item banega)
+        let cartKey = id + "_" + variant.toLowerCase() + "_" + spice.toLowerCase() + "_" + note.trim().toLowerCase();
+        
+        if (cart[cartKey]) {
+            cart[cartKey].qty += 1;
+        } else {
+            cart[cartKey] = { id, name, price, image, typeIcon, qty: 1, note, spice, variant };
+        }
+        updateMenuCardUI(id);
+        updateFloatingCart();
+    }
+
+    function updateMenuCount(id, change) {
+        let note = document.getElementById(`note-${id}`) ? document.getElementById(`note-${id}`).value : '';
+        let spiceBtn = document.getElementById(`item-${id}`).querySelector('.spice-text');
+        let spice = spiceBtn ? spiceBtn.innerText : 'Regular';
+        
+        // Current settings ke hisaab se variant dhoondo (Admin Variants ke liye check karna padega)
+        // Yahan hum simplified rakhne ke liye last added variant ko pakdenge agar Choice Popup nahi hai
+        let matches = Object.keys(cart).filter(k => k.startsWith(id + "_") && k.includes(spice.toLowerCase()) && k.includes(note.toLowerCase()));
+        
+        if (matches.length > 0) {
+            let key = matches[0];
+            cart[key].qty += change;
+            if (cart[key].qty <= 0) delete cart[key];
+        }
+        
+        updateMenuCardUI(id);
+        updateFloatingCart();
+        renderCartDrawer();
+    }
+
+    function updateMenuCardUI(id) {
+        const card = document.getElementById(`item-${id}`); 
+        if (!card) return;
+        const addBtn = card.querySelector('.add-btn-front');
+        const counterBox = card.querySelector('.counter-box');
+        const countVal = card.querySelector('.count-val');
+        
+        let note = document.getElementById(`note-${id}`) ? document.getElementById(`note-${id}`).value : '';
+        let spiceBtn = card.querySelector('.spice-text');
+        let spice = spiceBtn ? spiceBtn.innerText : 'Regular';
+
+        // 🌟 UI Logic: Kya current selection (Spice + Note) cart mein hai?
+        // Note: Variant popup ke case mein hum check karte hain ki kya is ID ka koi bhi item cart mein hai
+        let currentSelectionInCart = Object.values(cart).find(item => 
+            item.id == id && 
+            item.spice.toLowerCase() == spice.toLowerCase() && 
+            item.note.trim().toLowerCase() == note.trim().toLowerCase()
+        );
+
+        if (currentSelectionInCart) {
+            addBtn.style.opacity = '0'; addBtn.style.zIndex = '0';
+            counterBox.style.opacity = '1'; counterBox.style.zIndex = '10';
+            countVal.innerText = currentSelectionInCart.qty;
+        } else {
+            counterBox.style.opacity = '0'; counterBox.style.zIndex = '0';
+            addBtn.style.opacity = '1'; addBtn.style.zIndex = '10';
+        }
+    }
+
+
+    function updateFloatingCart() {
+        let totalQty = 0; let totalPrice = 0;
+        for (let key in cart) { totalQty += cart[key].qty; totalPrice += (cart[key].qty * cart[key].price); }
+        const bar = document.getElementById('floatingCart');
+        if (totalQty > 0) {
+            document.getElementById('cartCount').innerText = totalQty;
+            document.getElementById('cartTotal').innerText = '₹' + totalPrice;
+            bar.classList.remove('translate-y-32');
+            bar.classList.add('translate-y-0', 'pulse-animation');
+        } else {
+            bar.classList.add('translate-y-32'); closeCartDrawer();
+        }
+    }
+
+    function renderCartDrawer() {
+    const container = document.getElementById('cartDrawerContent');
+    if (!container) return; 
+    container.innerHTML = '';
+
+    if (Object.keys(cart).length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 mt-10 font-bold">Cart is empty</div>'; 
+        return;
+    }
+
+    for (let key in cart) {
+        let item = cart[key];
+        let spiceLevels = {
+            'Regular': { class: 'text-green-600 bg-green-50', icon: 'fa-leaf' },
+            'Medium': { class: 'text-orange-500 bg-orange-50', icon: 'fa-pepper-hot' },
+            'Extra': { class: 'text-red-600 bg-red-50', icon: 'fa-fire' }
+        };
+        let s = spiceLevels[item.spice] || spiceLevels['Regular'];
+        let variantTag = item.variant !== 'Regular' ? `<span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase ml-1">${item.variant}</span>` : '';
+
+        container.innerHTML += `
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3 animate-fade-in">
+                <div class="flex gap-3 items-center">
+                    <div class="w-16 h-16 rounded-xl overflow-hidden shrink-0">
+                        <img src="${item.image || ''}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-gray-900 text-sm">${item.name} ${variantTag}</h4>
+                            <div class="text-sm font-black text-slate-800">₹${item.price * item.qty}</div>
+                        </div>
+                        
+                        <button onclick="cycleSpiceInCart('${key}')" class="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-current border-opacity-10 ${s.class} text-[10px] font-black uppercase transition-all active:scale-95">
+                            <i class="fa-solid ${s.icon}"></i> ${item.spice}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <i class="fa-solid fa-pen-to-square absolute left-3 top-2.5 text-gray-300 text-[10px]"></i>
+                    <input type="text" value="${item.note || ''}" 
+                           onchange="updateNoteInCart('${key}', this.value)"
+                           placeholder="Any special instruction?" 
+                           class="w-full bg-gray-50 border border-gray-100 rounded-xl pl-8 pr-3 py-2 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all">
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Quantity</span>
+                    <div class="flex items-center bg-slate-900 text-white rounded-xl px-3 py-1 gap-4 shadow-md">
+                        <button onclick="updateCartFromDrawer('${key}', -1)" class="text-lg font-bold w-4">-</button>
+                        <span class="text-sm font-black">${item.qty}</span>
+                        <button onclick="updateCartFromDrawer('${key}', 1)" class="text-lg font-bold w-4">+</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+    
+    let total = 0; 
+    for (let k in cart) total += (cart[k].qty * cart[k].price);
+    document.getElementById('drawerTotal').innerText = '₹' + total;
+    document.getElementById('drawerItemCount').innerText = Object.keys(cart).length + ' Items Ready';
+}
+
+    function updateCartFromDrawer(key, delta) {
+        cart[key].qty += delta; 
+        let baseId = key.split('_')[0];
+        if (cart[key].qty <= 0) delete cart[key];
+        updateMenuCardUI(baseId); updateFloatingCart(); renderCartDrawer();
+    }
+// 🌶️ Cart के अंदर स्पाइस बदलने का लॉजिक
+function cycleSpiceInCart(key) {
+    const levels = ['Regular', 'Medium', 'Extra'];
+    let currentItem = cart[key];
+    let nextIndex = (levels.indexOf(currentItem.spice) + 1) % levels.length;
+    
+    // कार्ट में डेटा अपडेट करें
+    currentItem.spice = levels[nextIndex];
+    
+    // UI अपडेट करें
+    renderCartDrawer();
+    // मेनू कार्ड का ADD बटन सिंक करें
+    updateMenuCardUI(currentItem.id);
+}
+
+// 📝 Cart के अंदर नोट बदलने का लॉजिक
+function updateNoteInCart(key, val) {
+    cart[key].note = val;
+    // नोट बदलते ही मेनू कार्ड का ADD बटन सिंक करें
+    updateMenuCardUI(cart[key].id);
+}
+    // --- OTHER UI LOGIC ---
+    function openCartDrawer() { renderCartDrawer(); document.getElementById('cartDrawer').classList.remove('translate-y-full'); }
+    function closeCartDrawer() { document.getElementById('cartDrawer').classList.add('translate-y-full'); }
+
+   function cycleSpice(btn, itemId) {
+        const levels = [
+            {text: 'Regular', class: 'text-green-600', icon: 'fa-leaf'},
+            {text: 'Medium', class: 'text-orange-500', icon: 'fa-pepper-hot'},
+            {text: 'Extra', class: 'text-red-600', icon: 'fa-fire'}
+        ];
+        let currentText = btn.querySelector('.spice-text').innerText;
+        let nextIndex = (levels.findIndex(l => l.text === currentText) + 1) % levels.length;
+        let next = levels[nextIndex];
+        btn.querySelector('.spice-text').innerText = next.text;
+        btn.querySelector('i').className = `fa-solid ${next.icon} spice-icon ${next.class}`;
+        
+        // 🌟 Magic Line: Spice badalte hi UI update karo
+        updateMenuCardUI(itemId); 
+    }
+
+    function updateItemNoteInCart(id, val) {
+        // 🌟 Magic Line: Note likhte hi UI update karo (taaki ADD button dikhe)
+        updateMenuCardUI(id);
+    }
+
+    function placeOrder() {
+        if (Object.keys(cart).length === 0) { alert("Cart is empty!"); return; }
+        let btn = document.querySelector('button[onclick="placeOrder()"]');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+        fetch('/cart/place_order/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ cart: cart, table: "{{ table_number|escapejs }}" })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) { cart = {}; window.location.href = "{% url 'orders_page' %}"; }
+            else { alert("Error: " + data.message); btn.innerHTML = 'Place Order'; btn.disabled = false; }
+        });
+    }
+
+    function openRatingModal(itemId, itemName) { document.getElementById('ratingItemName').innerText = itemName; document.getElementById('currentRatingItemId').value = itemId; document.getElementById('ratingModal').classList.remove('hidden'); }
+    function closeRatingModal() { document.getElementById('ratingModal').classList.add('hidden'); }
+    function openFilterModal() { document.getElementById('filterModal').classList.remove('hidden'); }
+    function closeFilterModal() { document.getElementById('filterModal').classList.add('hidden'); }
+    function openServiceModal() { const m = document.getElementById('serviceModal'); m.classList.remove('hidden'); setTimeout(() => document.getElementById('serviceModalContent').style.transform = 'translateY(0)', 10); }
+    function closeServiceModal() { document.getElementById('serviceModalContent').style.transform = 'translateY(100%)'; setTimeout(() => document.getElementById('serviceModal').classList.add('hidden'), 300); }
+    function applyAdvancedFilters() { /* Your existing filter logic here */ }
+    function resetFilters() { /* Your existing reset logic here */ }
+    function scrollToSection(id) { const el = document.getElementById(id); if(el) window.scrollTo({ top: el.offsetTop - 120, behavior: "smooth" }); }
+    function callService(action) { /* Your existing service call logic here */ }
+    // 🌟 यह फंक्शन हर 10 सेकंड में चेक करेगा कि क्या आर्डर लॉक हो गया है
+function checkOrderLock() {
+    fetch('/api/get-order-status/') // सुनिश्चित करें कि यह API views.py में बनी है
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'Completed') {
+            // सारे 'ADD' बटनों को डिसेबल करें
+            document.querySelectorAll('.add-btn-front').forEach(btn => {
+                btn.disabled = true;
+                btn.innerText = "LOCKED";
+                btn.classList.replace('text-emerald-700', 'text-gray-400');
+            });
+            // फ्लोटिंग कार्ट को छुपा दें
+            const floatingCart = document.getElementById('floatingCart');
+            if(floatingCart) floatingCart.style.display = 'none';
+        }
+    });
+}
+setInterval(checkOrderLock, 10000); // 10 सेकंड में सिंक
+</script>
+</body>
+{% endblock %}

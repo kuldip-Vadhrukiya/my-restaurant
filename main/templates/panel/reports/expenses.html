@@ -1,0 +1,299 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-10 font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Accounts & Expenses 💸</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Track your daily khata, operational costs, and net profit.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-download"></i> Export P&L
+            </button>
+            <button onclick="openExpenseModal()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-800 transition active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-minus"></i> Add Expense
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm {% if message.tags == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-blue-50 rounded-full opacity-50"></div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Today's Total Sales</p>
+            <h3 class="text-3xl font-black text-blue-600" id="stat-sales">₹0</h3>
+            <p class="text-[10px] font-bold text-slate-400 mt-2"><i class="fa-solid fa-arrow-trend-up text-emerald-500"></i> Auto-fetched from POS</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-red-50 rounded-full opacity-50"></div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Expenses</p>
+            <h3 class="text-3xl font-black text-red-500" id="stat-expenses">₹0</h3>
+            <p class="text-[10px] font-bold text-slate-400 mt-2"><i class="fa-solid fa-receipt text-red-400"></i> Based on entries below</p>
+        </div>
+
+        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-center relative overflow-hidden transform hover:-translate-y-1 transition-transform">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/20 rounded-full blur-xl"></div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 text-emerald-100">Today's Net Profit</p>
+            <h3 class="text-4xl font-black text-emerald-400" id="stat-profit">₹0</h3>
+            <p class="text-[10px] font-bold mt-2 text-slate-400">Sales minus Expenses</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-t-2xl border border-slate-200 border-b-0 flex flex-col md:flex-row gap-4 justify-between items-center z-10 relative mt-4">
+        <div class="relative w-full md:w-80">
+            <i class="fa-solid fa-search absolute left-4 top-3.5 text-slate-400"></i>
+            <input type="text" id="searchExpense" onkeyup="renderExpenses()" placeholder="Search description..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all">
+        </div>
+
+        <div class="flex flex-wrap gap-3 w-full md:w-auto">
+            <select id="filterCategory" onchange="renderExpenses()" class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-600 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="All">All Categories</option>
+                <option value="Raw Material">Raw Material</option>
+                <option value="Utility">Utility / Bills</option>
+                <option value="Staff Advance">Staff Advance</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Misc">Miscellaneous</option>
+            </select>
+            
+            <input type="date" id="filterDate" onchange="renderExpenses()" class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-600 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-b-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-200">
+                        <th class="p-4 pl-6">Date & Time</th>
+                        <th class="p-4">Description</th>
+                        <th class="p-4">Category</th>
+                        <th class="p-4">Payment Mode</th>
+                        <th class="p-4 text-right">Amount</th>
+                        <th class="p-4 pr-6 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseTableBody" class="text-sm text-slate-700 divide-y divide-slate-100">
+                    </tbody>
+            </table>
+        </div>
+        
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-12 text-slate-400">
+            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
+                <i class="fa-solid fa-receipt text-2xl text-slate-300"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-600">No expenses recorded</h3>
+            <p class="text-xs mt-1">Looks clean! Add a new expense if money went out.</p>
+        </div>
+    </div>
+</div>
+
+<div id="expenseModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col slide-down relative">
+        
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-xl font-black text-slate-800" id="modalTitle">Record Expense</h2>
+            <button onclick="closeExpenseModal()" class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 shadow-sm transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'accounts_expense' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add">
+            
+            <div class="p-6 bg-white space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Amount (₹) *</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" step="0.01" name="amount" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3 text-lg font-black text-red-500 focus:ring-2 focus:ring-red-500 outline-none transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Expense Category *</label>
+                    <select name="category" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        <option value="Raw Material">Raw Material (Veg, Groceries)</option>
+                        <option value="Utility">Utility (Electricity, Water)</option>
+                        <option value="Staff Advance">Staff Advance / Salary</option>
+                        <option value="Maintenance">Maintenance & Repair</option>
+                        <option value="Misc">Miscellaneous</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Description / Narration *</label>
+                    <input type="text" name="desc" required placeholder="e.g. Bought 5kg Paneer" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Payment Mode *</label>
+                    <div class="flex gap-3">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="mode" value="Cash Drawer" class="peer sr-only" checked>
+                            <div class="text-center py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 peer-checked:border-slate-800 peer-checked:bg-slate-900 peer-checked:text-white transition">
+                                <i class="fa-solid fa-money-bill-wave mr-1"></i> Cash
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="mode" value="Owner UPI" class="peer sr-only">
+                            <div class="text-center py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition">
+                                <i class="fa-brands fa-google-pay mr-1"></i> UPI / Bank
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Date</label>
+                    <input type="date" name="date" id="formDate" required class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" onclick="closeExpenseModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition border border-slate-200 bg-white">Cancel</button>
+                <button type="submit" class="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-lg transition">Save Entry</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // 1. INJECT REAL DJANGO DATA
+    const todayStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').join('-'); // Gets proper local YYYY-MM-DD
+    
+    document.getElementById('filterDate').value = todayStr;
+    document.getElementById('formDate').value = todayStr;
+
+    // Aayi hui aaj ki Sales
+    let totalSalesToday = {{ todays_sales|default:0 }}; 
+
+    // Django se Expenses ka DB
+    let expensesData = [
+        {% for exp in expenses %}
+        { 
+            id: {{ exp.id }}, 
+            date: "{{ exp.date|date:'Y-m-d' }}", 
+            desc: "{{ exp.title|escapejs }}", 
+            category: "{{ exp.category|escapejs }}", 
+            mode: "{{ exp.payment_mode|escapejs }}", 
+            amount: {{ exp.amount }} 
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Colors
+    const catColors = {
+        'Raw Material': 'bg-blue-50 text-blue-600 border-blue-200',
+        'Utility': 'bg-orange-50 text-orange-600 border-orange-200',
+        'Staff Advance': 'bg-purple-50 text-purple-600 border-purple-200',
+        'Maintenance': 'bg-slate-100 text-slate-600 border-slate-200',
+        'Misc': 'bg-gray-100 text-gray-600 border-gray-200'
+    };
+
+    // 2. RENDER LOGIC
+    function renderExpenses() {
+        const tbody = document.getElementById('expenseTableBody');
+        const searchTerm = document.getElementById('searchExpense').value.toLowerCase();
+        const catFilter = document.getElementById('filterCategory').value;
+        const dateFilter = document.getElementById('filterDate').value;
+        const emptyState = document.getElementById('emptyState');
+        
+        tbody.innerHTML = '';
+        let visibleCount = 0;
+        let totalExpenseFiltered = 0;
+
+        expensesData.forEach(exp => {
+            if (dateFilter && exp.date !== dateFilter) return;
+            if (catFilter !== 'All' && exp.category !== catFilter) return;
+            if (!exp.desc.toLowerCase().includes(searchTerm)) return;
+
+            visibleCount++;
+            totalExpenseFiltered += exp.amount;
+
+            let badgeClass = catColors[exp.category] || catColors['Misc'];
+            let modeIcon = exp.mode === 'Cash Drawer' ? '<i class="fa-solid fa-money-bill-wave text-emerald-500"></i>' : '<i class="fa-solid fa-building-columns text-purple-500"></i>';
+            let formattedDate = new Date(exp.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            // REAL DELETE FORM
+            let row = `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-4 pl-6 text-xs font-bold text-slate-500">${formattedDate}</td>
+                <td class="p-4 font-bold text-slate-800">${exp.desc}</td>
+                <td class="p-4">
+                    <span class="px-2 py-1 border rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}">${exp.category}</span>
+                </td>
+                <td class="p-4 text-xs font-bold text-slate-600 flex items-center gap-2 mt-1.5">
+                    ${modeIcon} ${exp.mode}
+                </td>
+                <td class="p-4 text-right font-black text-red-500">
+                    - ₹${exp.amount.toLocaleString()}
+                </td>
+                <td class="p-4 pr-6 text-right">
+                    <form method="POST" action="{% url 'accounts_expense' %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="expense_id" value="${exp.id}">
+                        <button type="submit" onclick="return confirm('Delete this expense?')" class="w-7 h-7 rounded bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition" title="Delete">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        if(visibleCount === 0) {
+            emptyState.classList.remove('hidden'); emptyState.classList.add('flex');
+        } else {
+            emptyState.classList.add('hidden'); emptyState.classList.remove('flex');
+        }
+
+        // PROFIT & LOSS CALCULATION
+        let isToday = (dateFilter === todayStr);
+        let displaySales = isToday ? totalSalesToday : 0; 
+        let netProfit = displaySales - totalExpenseFiltered;
+
+        document.getElementById('stat-sales').innerText = isToday ? '₹' + displaySales.toLocaleString() : 'N/A';
+        document.getElementById('stat-expenses').innerText = '₹' + totalExpenseFiltered.toLocaleString();
+        
+        let profitEl = document.getElementById('stat-profit');
+        profitEl.innerText = isToday ? '₹' + netProfit.toLocaleString() : 'N/A';
+        
+        if(netProfit < 0) {
+            profitEl.classList.remove('text-emerald-400');
+            profitEl.classList.add('text-red-400');
+        } else {
+            profitEl.classList.add('text-emerald-400');
+            profitEl.classList.remove('text-red-400');
+        }
+    }
+
+    // 3. MODAL LOGIC
+    const modal = document.getElementById('expenseModal');
+    function openExpenseModal() { modal.classList.remove('hidden'); }
+    function closeExpenseModal() { modal.classList.add('hidden'); }
+
+    document.addEventListener("DOMContentLoaded", renderExpenses);
+</script>
+{% endblock %}

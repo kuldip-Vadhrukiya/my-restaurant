@@ -1,0 +1,166 @@
+{% extends 'cashier/base_cashier.html' %}
+{% load static %}
+
+{% block page_title %}Live Billing Terminal{% endblock %}
+
+{% block content %}
+{% if messages %}
+<div class="fixed top-20 right-5 z-50 space-y-2">
+    {% for message in messages %}
+    <div class="p-4 rounded-xl shadow-2xl border-l-4 bg-emerald-50 border-emerald-500 text-emerald-800 animate-in slide-in-from-right duration-300">
+        <p class="text-xs font-black uppercase tracking-widest">{{ message }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="flex flex-col lg:flex-row gap-6 h-full animate-in fade-in duration-500">
+    
+    <div class="lg:w-2/3 h-full overflow-y-auto no-scrollbar pr-2">
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</p><p class="text-xl font-black text-slate-800">{{ total_tables }}</p></div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500"><p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Occupied</p><p class="text-xl font-black text-slate-800">{{ occupied_count }}</p></div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-amber-500"><p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Billed</p><p class="text-xl font-black text-slate-800">{{ billed_count }}</p></div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500"><p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Available</p><p class="text-xl font-black text-slate-800">{{ available_count }}</p></div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+            {% for table in tables %}
+                
+                {% if table.status == 'Occupied' %}
+                <div onclick="loadBillData('{{ table.id }}', '{{ table.name }}')" class="cursor-pointer group relative transition-all duration-300 transform hover:-translate-y-1 rounded-2xl p-5 border bg-white border-emerald-500 shadow-lg shadow-emerald-500/10 flex flex-col items-center justify-center h-36">
+                    <div class="absolute top-3 right-3 flex items-center gap-1"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span class="text-[8px] font-black text-emerald-600 uppercase">Live</span></div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2"><i class="fa-solid fa-utensils"></i></div>
+                    <span class="text-base font-black text-slate-800">{{ table.name }}</span>
+                    <p class="text-[10px] font-bold text-emerald-600 mt-1">₹{{ table.bill_amount|floatformat:2 }}</p>
+                </div>
+                
+                {% elif table.status == 'Billed' or table.status == 'Completed' %}
+                <div onclick="loadBillData('{{ table.id }}', '{{ table.name }}')" class="cursor-pointer group relative transition-all duration-300 transform hover:-translate-y-1 rounded-2xl p-5 border-2 bg-red-50 border-red-500 shadow-lg shadow-red-500/20 flex flex-col items-center justify-center h-36 animate-pulse">
+                    <div class="absolute top-2 right-2 bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest">BILL REQ</div>
+                    <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-2"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                    <span class="text-base font-black text-slate-800">{{ table.name }}</span>
+                    <p class="text-[10px] font-bold text-red-700 mt-1">₹{{ table.bill_amount|floatformat:2 }}</p>
+                </div>
+                
+                {% else %}
+                <div class="cursor-not-allowed group transition-all duration-300 rounded-2xl p-5 border bg-slate-100/50 border-slate-200 text-slate-400 flex flex-col items-center justify-center h-36">
+                    <i class="fa-solid fa-chair text-xl mb-2"></i>
+                    <span class="text-base font-black">{{ table.name }}</span>
+                    <span class="text-[9px] font-bold mt-1 uppercase">Vacant</span>
+                </div>
+                {% endif %}
+
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="lg:w-1/3 flex flex-col bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden sticky top-0" style="height: calc(100vh - 120px);">
+        <div class="p-6 bg-slate-900 text-white flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-black tracking-tight" id="selected-table-label">Select Table</h3>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest" id="order-id-label">Waiting for selection...</p>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 no-scrollbar" id="bill-items-container">
+            <div class="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50">
+                <i class="fa-solid fa-receipt text-5xl text-slate-300"></i>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Click an active table to generate bill</p>
+            </div>
+        </div>
+
+       <div class="p-6 bg-slate-50 border-t border-slate-200 space-y-4">
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-tight">
+                    <span>Amount</span>
+                    <span id="subtotal-val">₹0.00</span>
+                </div>
+                <div class="flex justify-between text-xl font-black text-slate-900 pt-2 border-t border-slate-200">
+                    <span>Payable Total</span>
+                    <span id="grand-total-val" class="text-emerald-600">₹0.00</span>
+                </div>
+            </div>
+            
+            <form action="{% url 'complete_settlement' %}" method="POST" id="settlement-form" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                {% csrf_token %}
+                <input type="hidden" name="order_id" id="hidden-order-id">
+                <input type="hidden" name="payment_mode" id="selected-payment-mode" required>
+                
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Select Payment Method</p>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <button type="button" onclick="setPaymentMode('Cash', this)" class="pay-mode-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 transition-all cursor-pointer group">
+                        <i class="fa-solid fa-money-bill-wave text-slate-400 group-hover:text-emerald-500 mb-1"></i>
+                        <span class="text-[9px] font-bold uppercase text-slate-500">Cash</span>
+                    </button>
+                    <button type="button" onclick="setPaymentMode('UPI', this)" class="pay-mode-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 transition-all cursor-pointer group">
+                        <i class="fa-solid fa-qrcode text-slate-400 group-hover:text-emerald-500 mb-1"></i>
+                        <span class="text-[9px] font-bold uppercase text-slate-500">UPI</span>
+                    </button>
+                    <button type="button" onclick="setPaymentMode('Card', this)" class="pay-mode-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-500 transition-all cursor-pointer group">
+                        <i class="fa-solid fa-credit-card text-slate-400 group-hover:text-blue-500 mb-1"></i>
+                        <span class="text-[9px] font-bold uppercase text-slate-500">Card</span>
+                    </button>
+                </div>
+                
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center tracking-widest text-sm uppercase transition-transform active:scale-95">
+                    Settle & Print Bill <i class="fa-solid fa-print ml-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function setPaymentMode(mode, btn) {
+    document.getElementById('selected-payment-mode').value = mode;
+    document.querySelectorAll('.pay-mode-btn').forEach(b => {
+        b.classList.remove('border-emerald-500', 'bg-emerald-50', 'ring-2', 'ring-emerald-500/20');
+        let icon = b.querySelector('i');
+        if(icon) icon.classList.replace('text-emerald-500', 'text-slate-400');
+    });
+    btn.classList.add('border-emerald-500', 'bg-emerald-50', 'ring-2', 'ring-emerald-500/20');
+    let activeIcon = btn.querySelector('i');
+    if(activeIcon) activeIcon.classList.replace('text-slate-400', 'text-emerald-500');
+}
+
+// REAL API FETCH 
+function loadBillData(tableId, tableName) {
+    const container = document.getElementById('bill-items-container');
+    const label = document.getElementById('selected-table-label');
+    const orderLabel = document.getElementById('order-id-label');
+    const form = document.getElementById('settlement-form');
+    
+    container.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-500"></i></div>';
+    
+    fetch(`/cashier/get-bill/${tableId}/`)
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            label.innerText = "Table: " + tableName;
+            orderLabel.innerText = "Order #" + data.order_id;
+            document.getElementById('hidden-order-id').value = data.order_id;
+            document.getElementById('subtotal-val').innerText = "₹" + data.total.toFixed(2);
+            document.getElementById('grand-total-val').innerText = "₹" + data.total.toFixed(2);
+            form.classList.remove('hidden');
+            
+            let itemsHtml = '<div class="space-y-4">';
+            data.items.forEach(item => {
+                itemsHtml += `
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">${item.item_name}</p>
+                        <p class="text-xs text-slate-400">${item.qty} × ₹${item.price}</p>
+                    </div>
+                    <p class="text-sm font-black text-slate-700">₹${(item.qty * item.price).toFixed(2)}</p>
+                </div>`;
+            });
+            container.innerHTML = itemsHtml + '</div>';
+        } else {
+            container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-50"><p class="text-center font-bold uppercase tracking-widest">${data.message}</p></div>`;
+            form.classList.add('hidden');
+        }
+    });
+}
+</script>
+{% endblock %}

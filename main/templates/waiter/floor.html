@@ -1,0 +1,202 @@
+{% extends "waiter/base_waiter.html" %}
+{% load static %}
+
+{% block content %}
+<script>document.getElementById('pageTitle') && (document.getElementById('pageTitle').innerText = "Live Floor Map");</script>
+
+<div id="toastContainer" class="fixed top-20 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none"></div>
+
+<div class="max-w-7xl mx-auto h-full flex flex-col fade-in relative pb-24">
+
+    <div class="bg-[#0f172a] rounded-2xl p-4 lg:px-6 shadow-lg relative z-10 mb-5 w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-slate-800">
+        <div class="flex items-center gap-4 w-full md:w-auto justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/10 rounded-xl hidden sm:flex items-center justify-center text-white backdrop-blur-sm border border-white/20 shrink-0">
+                    <i class="fa-solid fa-map text-sm"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl lg:text-2xl font-black text-white tracking-tight leading-none">Floor Status</h2>
+                    <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live Syncing
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-1 md:pb-0" id="filterContainer">
+            <button onclick="filterFloor('All')" class="filter-btn active shrink-0 px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wide transition-all shadow-md shadow-emerald-500/30">
+                ALL
+            </button>
+            <button onclick="filterFloor('Vacant')" class="filter-btn shrink-0 px-4 py-2 bg-white/10 text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all border border-white/5 hover:bg-white/20">
+                VACANT
+            </button>
+            <button onclick="filterFloor('Running')" class="filter-btn shrink-0 px-4 py-2 bg-white/10 text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all border border-white/5 hover:bg-white/20">
+                RUNNING
+            </button>
+            <button onclick="filterFloor('Food Ready')" class="filter-btn shrink-0 px-4 py-2 bg-white/10 text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all border border-white/5 hover:bg-white/20">
+                PICKUPS
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto no-scrollbar">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="tableGrid">
+            </div>
+    </div>
+</div>
+
+<div id="actionModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity opacity-0 duration-300" id="modalBackdrop" onclick="closeTableMenu()"></div>
+    
+    <div class="bg-white w-full max-w-sm mx-auto rounded-[1.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.3)] transform scale-95 opacity-0 transition-all duration-300 relative z-10 overflow-hidden" id="modalContent">
+        <button onclick="closeTableMenu()" class="absolute top-4 right-4 w-8 h-8 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors z-20"><i class="fa-solid fa-times text-sm"></i></button>
+
+        <div class="p-6 pt-6">
+            <div class="flex justify-between items-center mb-1">
+                <h3 class="text-3xl font-black text-[#0f172a] tracking-tighter" id="sheetTableNo">T-XX</h3>
+                <div id="sheetStatusBadge"></div>
+            </div>
+            
+            <p class="text-[10px] font-bold text-slate-500 mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chair text-slate-400"></i> <span id="modSeats">4</span>
+                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                <span id="modTime">0m elapsed</span>
+            </p>
+
+            <div class="space-y-2.5">
+                <button onclick="handlePunchOrder()" id="btnPunch" class="w-full py-3.5 bg-[#0f172a] text-white rounded-xl flex items-center justify-center gap-2.5 active:scale-95 transition-all shadow-md shadow-slate-900/20 hover:bg-black">
+                    <i class="fa-solid fa-plus text-base text-emerald-400"></i>
+                    <span class="text-xs font-black uppercase tracking-widest">Punch New Order</span>
+                </button>
+
+                <button onclick="handleViewStatus()" id="btnStatus" class="w-full py-3.5 bg-white text-slate-600 border-2 border-slate-100 rounded-xl flex items-center justify-center gap-2.5 active:scale-95 transition-all hover:border-slate-200 hover:bg-slate-50">
+                    <i class="fa-solid fa-receipt text-base text-slate-400"></i>
+                    <span class="text-xs font-black uppercase tracking-widest">View Running KOTs</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. INJECT DJANGO DATA TO JS
+    let tables = {{ tables_json|safe }};
+    let currentSelectedTable = "";
+    let currentFilter = 'All';
+
+    function filterFloor(status) {
+        currentFilter = status;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/30');
+            btn.classList.add('bg-white/10', 'text-slate-300', 'border-white/5');
+            if(btn.innerText.includes(status.toUpperCase()) || (status==='All' && btn.innerText.includes('ALL'))) {
+                btn.classList.remove('bg-white/10', 'text-slate-300', 'border-white/5');
+                btn.classList.add('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/30');
+            }
+        });
+        renderTables();
+    }
+
+    function renderTables() {
+        const grid = document.getElementById('tableGrid');
+        let filteredTables = currentFilter !== 'All' ? tables.filter(t => t.status === currentFilter) : tables;
+
+        grid.innerHTML = filteredTables.map(t => {
+            let bgClass = 'bg-white', borderClass = 'border-slate-100', textClass = 'text-[#0f172a]', badgeClass = 'bg-slate-100 text-slate-500';
+            let iconHTML = '';
+            
+            if(t.status === 'Running') { bgClass = 'bg-[#fffbeb]'; borderClass = 'border-[#fde68a]'; textClass = 'text-[#78350f]'; badgeClass = 'bg-[#fef3c7] text-[#b45309]'; }
+            if(t.status === 'Food Ready') { bgClass = 'bg-[#fff7ed]'; borderClass = 'border-[#fdba74] shadow-md shadow-orange-500/10'; textClass = 'text-[#9a3412]'; badgeClass = 'bg-[#f97316] text-white animate-pulse'; }
+            if(t.status === 'Bill Req') { bgClass = 'bg-[#fef2f2]'; borderClass = 'border-[#fca5a5]'; textClass = 'text-[#7f1d1d]'; badgeClass = 'bg-[#ef4444] text-white'; }
+
+            t.alerts.forEach(alert => {
+                if(alert === 'water') iconHTML += `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[9px] shadow-sm border border-white"><i class="fa-solid fa-droplet"></i></div>`;
+                if(alert === 'food') iconHTML += `<div class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-[9px] shadow-sm border border-white animate-bounce"><i class="fa-solid fa-bell-concierge"></i></div>`;
+                if(alert === 'bill') iconHTML += `<div class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-[9px] shadow-sm border border-white animate-pulse"><i class="fa-solid fa-file-invoice-dollar"></i></div>`;
+            });
+
+            return `
+            <div onclick="openTableMenu('${t.id}')" class="${bgClass} border-2 ${borderClass} rounded-2xl p-4 flex flex-col relative active:scale-95 transition-all cursor-pointer min-h-[120px]">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-[8px] font-black uppercase tracking-widest ${badgeClass} px-2 py-1 rounded-md">${t.status}</span>
+                </div>
+                <h3 class="text-3xl font-black ${textClass} my-auto tracking-tighter">${t.id}</h3>
+                <div class="flex justify-between items-end mt-auto pt-2">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-bold ${textClass} opacity-70"><i class="fa-solid fa-chair"></i> ${t.seats}</span>
+                        ${t.time ? `<span class="text-[8px] font-bold ${textClass} opacity-50 mt-0.5"><i class="fa-regular fa-clock"></i> ${t.time}</span>` : ''}
+                    </div>
+                    <div class="flex -space-x-1">${iconHTML}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function openTableMenu(tableId) {
+        currentSelectedTable = tableId;
+        const t = tables.find(x => x.id === tableId);
+        document.getElementById('sheetTableNo').innerText = t.id;
+        document.getElementById('modSeats').innerText = t.seats;
+        document.getElementById('modTime').innerText = t.time || '0m elapsed';
+        
+        let badgeColor = t.status === 'Vacant' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-600';
+        document.getElementById('sheetStatusBadge').innerHTML = `<span class="px-2.5 py-1 ${badgeColor} text-[9px] font-black uppercase tracking-widest rounded-full">${t.status}</span>`;
+
+        const modal = document.getElementById('actionModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        requestAnimationFrame(() => {
+            document.getElementById('modalBackdrop').classList.remove('opacity-0');
+            document.getElementById('modalContent').classList.remove('scale-95', 'opacity-0');
+        });
+    }
+
+    function closeTableMenu() {
+        document.getElementById('modalBackdrop').classList.add('opacity-0'); 
+        document.getElementById('modalContent').classList.add('scale-95', 'opacity-0');
+        setTimeout(() => { document.getElementById('actionModal').classList.add('hidden'); document.getElementById('actionModal').classList.remove('flex'); }, 300);
+    }
+
+    function handlePunchOrder() { window.location.href = "{% url 'waiter_punch_order' %}?table=" + currentSelectedTable; }
+    function handleViewStatus() { window.location.href = "{% url 'waiter_running_orders' %}?table=" + currentSelectedTable; }
+
+    document.addEventListener('DOMContentLoaded', renderTables);
+
+    // 🌟 STEP 2 MASTER SYNC ENGINE 🌟
+    function syncWaiterData() {
+        // बिना पेज रिफ्रेश किए डेटाबेस से नया डेटा लाओ
+        fetch('/api/waiter-updates/')
+        .then(res => res.json())
+        .then(data => {
+            const tableAlerts = data.table_alerts; // e.g. {"T1": ["water"], "T5": ["food"]}
+            
+            // डेटाबेस से आए नए अलर्ट्स के हिसाब से मौजूदा 'tables' एरे को अपडेट करो
+            tables.forEach(t => {
+                if (tableAlerts[t.id]) {
+                    t.alerts = tableAlerts[t.id];
+                    // अगर अलर्ट में 'food' है तो स्टेटस 'Food Ready' कर दो
+                    if(t.alerts.includes('food')) t.status = 'Food Ready';
+                    else if(t.alerts.includes('bill')) t.status = 'Bill Req';
+                } else {
+                    t.alerts = [];
+                    // अगर टेबल पर आर्डर चल रहा है पर अलर्ट नहीं है तो उसे 'Running' रहने दो
+                    if(t.status === 'Food Ready' || t.status === 'Bill Req') t.status = 'Running';
+                }
+            });
+
+            // सिर्फ टेबल ग्रिड को दोबारा रेंडर करो बिना पूरा पेज लोड किए
+            renderTables();
+        })
+        .catch(err => console.error("Sync Error:", err));
+    }
+
+    // हर 5 सेकंड में किचन और कस्टमर की हलचल चेक करो
+    setInterval(syncWaiterData, 5000);
+
+    // पेज लोड होते ही पहली बार सिंक चलाओ
+    document.addEventListener('DOMContentLoaded', () => {
+        renderTables();
+        syncWaiterData();
+    });
+
+</script>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "panel/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* KDS Specific Styles */
+    .kds-card { transition: all 0.3s ease; }
+    
+    /* Strike-through effect for completed items */
+    .item-done { text-decoration: line-through; color: #94a3b8; opacity: 0.7; transition: all 0.2s; }
+    
+    /* Blinking red for delayed orders */
+    .timer-alert { animation: blinkRed 1s infinite alternate; }
+    @keyframes blinkRed { from { background-color: #fee2e2; color: #b91c1c; } to { background-color: #fca5a5; color: #7f1d1d; } }
+
+    /* Custom Checkbox */
+    .kds-checkbox:checked + div { background-color: #10b981; border-color: #10b981; }
+    .kds-checkbox:checked + div svg { opacity: 1; }
+</style>
+
+<div class="h-full flex flex-col font-['Plus_Jakarta_Sans']">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 flex-shrink-0">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Kitchen Display (KDS)</h1>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Route KOTs to specific kitchen stations.</p>
+        </div>
+        
+        <div class="bg-slate-900 text-white px-5 py-2 rounded-xl text-lg font-black tracking-widest shadow-lg shadow-slate-900/20" id="kdsClock">
+            00:00:00
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    <i class="fa-solid fa-circle-check mr-1"></i> {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="flex overflow-x-auto no-scrollbar gap-3 mb-6 pb-2 border-b border-slate-200 flex-shrink-0" id="kitchenTabs">
+        <button onclick="filterKitchen('All')" class="kitchen-tab active-tab px-6 py-2.5 rounded-full text-sm font-bold bg-slate-900 text-white shadow-md transition-all whitespace-nowrap">Global (All)</button>
+        <button onclick="filterKitchen('Punjabi')" class="kitchen-tab px-6 py-2.5 rounded-full text-sm font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all whitespace-nowrap">🥘 Punjabi</button>
+        <button onclick="filterKitchen('Chinese')" class="kitchen-tab px-6 py-2.5 rounded-full text-sm font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all whitespace-nowrap">🍜 Chinese</button>
+        <button onclick="filterKitchen('Gujarati')" class="kitchen-tab px-6 py-2.5 rounded-full text-sm font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all whitespace-nowrap">🍲 Gujarati</button>
+        <button onclick="filterKitchen('Tandoor')" class="kitchen-tab px-6 py-2.5 rounded-full text-sm font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all whitespace-nowrap">🍞 Tandoor</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto pr-2 pb-10">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" id="kdsGrid">
+            
+            {% for order in active_orders %}
+            <div class="kds-card-item bg-[#fdfbf7] rounded-xl shadow-md border-t-4 border-slate-800 flex flex-col overflow-hidden kds-card relative" data-kitchens="{{ order.kitchen_tags }}">
+                
+                <div class="absolute top-0 right-0 bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-bl-lg">
+                    {{ order.primary_kitchen }}
+                </div>
+
+                <div class="p-4 border-b border-slate-200/60 pb-3">
+                    <div class="flex justify-between items-end mb-2 mt-1">
+                        <h2 class="text-xl font-black text-slate-900">{{ order.table.name|default:"Takeaway" }}</h2>
+                        <span class="text-[10px] font-bold text-slate-500">#ORD-{{ order.order_id }}</span>
+                    </div>
+                    
+                    <div class="text-[11px] font-bold px-2 py-1 rounded-md flex items-center justify-center w-max
+                        {% if order.elapsed_mins > 20 %} timer-alert border border-red-300
+                        {% elif order.elapsed_mins > 10 %} bg-orange-100 text-orange-800 border border-orange-200
+                        {% else %} bg-emerald-100 text-emerald-800 {% endif %}">
+                        
+                        {% if order.elapsed_mins > 20 %}<i class="fa-solid fa-triangle-exclamation mr-1"></i>{% endif %}
+                        {{ order.elapsed_mins }} mins ago ({{ order.created_at|time:"h:i A" }})
+                    </div>
+                </div>
+
+                <div class="p-2 flex-1 space-y-1">
+                    {% for item in order.items.all %}
+                        {% if item.item_status != 'Served' %}
+                        <label class="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition">
+                            <div class="relative flex items-start pt-0.5">
+                                <input type="checkbox" class="kds-checkbox sr-only" onchange="toggleItem('{{ item.id }}', this)">
+                                <div class="w-5 h-5 border-2 border-slate-300 rounded flex items-center justify-center transition-colors">
+                                    <svg class="w-3 h-3 text-white opacity-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </div>
+                            <div id="text-{{ item.id }}">
+                                <p class="font-bold text-slate-800 text-sm leading-tight">{{ item.qty }} x {{ item.item_name }}</p>
+                                {% if item.spice and item.spice != 'Regular' %}
+                                    <p class="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded w-max mt-1 uppercase tracking-wider">🌶 {{ item.spice }}</p>
+                                {% endif %}
+                                {% if item.instruction %}
+                                    <p class="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded w-max mt-1 uppercase tracking-wider">📝 {{ item.instruction }}</p>
+                                {% endif %}
+                            </div>
+                        </label>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <form method="POST" action="{% url 'kitchen_status' %}" class="p-3 bg-white border-t border-slate-100">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                    <button type="submit" class="w-full py-3 bg-emerald-500 text-white font-black text-sm rounded-lg shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-95 transition-transform flex justify-center items-center gap-2 uppercase tracking-wide">
+                        <i class="fa-solid fa-check-double"></i> Bump (Food Ready)
+                    </button>
+                </form>
+
+            </div>
+            {% endfor %}
+            
+        </div>
+
+        <div id="emptyKds" class="{% if active_orders %}hidden{% else %}flex{% endif %} flex-col items-center justify-center pt-20 text-slate-400">
+            <i class="fa-solid fa-mug-hot text-5xl mb-4 text-slate-300"></i>
+            <h3 class="text-xl font-bold text-slate-600">No Pending Orders</h3>
+            <p class="text-sm">This kitchen station is clear!</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // 1. LIVE CLOCK
+    setInterval(() => {
+        document.getElementById('kdsClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    }, 1000);
+
+    // 2. TAB FILTER LOGIC
+    function filterKitchen(station) {
+        // Update Tab UI
+        let tabs = document.querySelectorAll('.kitchen-tab');
+        tabs.forEach(tab => {
+            if(tab.innerText.includes(station) || (station === 'All' && tab.innerText.includes('Global'))) {
+                tab.className = "kitchen-tab active-tab px-6 py-2.5 rounded-full text-sm font-bold bg-slate-900 text-white shadow-md transition-all whitespace-nowrap";
+            } else {
+                tab.className = "kitchen-tab px-6 py-2.5 rounded-full text-sm font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all whitespace-nowrap";
+            }
+        });
+
+        // Filter Cards
+        let cards = document.querySelectorAll('.kds-card-item');
+        let visibleCount = 0;
+        
+        cards.forEach(card => {
+            let kitchens = card.getAttribute('data-kitchens');
+            if(station === 'All' || kitchens.includes(station)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Toggle Empty State
+        if(visibleCount === 0) {
+            document.getElementById('emptyKds').classList.remove('hidden');
+            document.getElementById('emptyKds').classList.add('flex');
+        } else {
+            document.getElementById('emptyKds').classList.add('hidden');
+            document.getElementById('emptyKds').classList.remove('flex');
+        }
+    }
+
+    // 3. ITEM CHECKBOX LOGIC (Strike-through effect)
+    function toggleItem(itemId, checkbox) {
+        let textDiv = document.getElementById(`text-${itemId}`);
+        if(checkbox.checked) {
+            textDiv.classList.add('item-done');
+        } else {
+            textDiv.classList.remove('item-done');
+        }
+    }
+
+    // 4. AUTO REFRESH (To get new orders automatically)
+    setTimeout(() => {
+        window.location.reload();
+    }, 15000); // Refreshes every 15 seconds
+</script>
+{% endblock %}

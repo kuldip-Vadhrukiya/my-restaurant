@@ -1,0 +1,443 @@
+{% extends "waiter/base_waiter.html" %}
+{% load static %}
+
+{% block content %}
+<script>document.getElementById('pageTitle') && (document.getElementById('pageTitle').innerText = "Punch Order");</script>
+
+<div id="toastContainer" class="fixed top-10 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none"></div>
+
+<div class="w-full h-[calc(100vh-64px)] lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row bg-slate-50 overflow-hidden absolute left-0 top-16 lg:top-auto lg:relative z-10">
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 relative">
+        
+        <div class="bg-white px-6 py-4 border-b border-slate-200 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10 shadow-sm">
+            <div class="flex items-center gap-4">
+                <a href="{% url 'waiter_floor' %}" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="text-xl font-black text-slate-800 tracking-tight" id="tableTitle">Table {{ selected_table|default:"Takeaway" }}</h2>
+                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-widest">Punching Order</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" onkeyup="renderMenu()" placeholder="Search dishes..." class="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-all">
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-3 py-2.5 rounded-xl hover:bg-emerald-50 transition-colors shrink-0 shadow-sm">
+                    <input type="checkbox" id="filterVeg" onchange="renderMenu()" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                    <span class="text-xs font-black text-emerald-600 uppercase tracking-widest"><i class="fa-solid fa-leaf"></i> Veg</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="bg-white border-b border-slate-200 shrink-0 px-2 lg:px-6">
+            <div class="flex overflow-x-auto no-scrollbar" id="categoryContainer">
+                <button onclick="filterCategory('All', this)" class="cat-btn active whitespace-nowrap px-4 py-3.5 text-sm font-black text-slate-800 border-b-2 border-slate-800 transition-all">All Items</button>
+                {% for cat in categories %}
+                <button onclick="filterCategory('{{ cat.name|escapejs }}', this)" class="cat-btn whitespace-nowrap px-4 py-3.5 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-800 transition-all">{{ cat.name }}</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 lg:p-6 pb-32 lg:pb-6 no-scrollbar relative">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-5" id="menuGrid">
+                </div>
+        </div>
+    </div>
+
+    <div class="hidden lg:flex flex-col w-[360px] bg-white border-l border-slate-200 h-full z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.04)] shrink-0">
+        
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+            <div>
+                <h3 class="text-lg font-black text-slate-800 tracking-tight">Draft KOT</h3>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Table {{ selected_table|default:"Takeaway" }}</p>
+            </div>
+            <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm" id="deskCartCount">0</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 no-scrollbar bg-slate-50/30" id="desktopCartList">
+            </div>
+
+        <div class="p-5 bg-white border-t border-slate-200 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] space-y-3">
+            <div class="flex justify-between text-sm font-bold text-slate-600">
+                <span>Subtotal</span>
+                <span>₹<span id="deskSubtotal">0</span></span>
+            </div>
+            <div class="flex justify-between items-end pt-2 border-t border-slate-100">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Est. Total</span>
+                <span class="text-2xl font-black text-emerald-600 leading-none">₹<span id="deskTotal">0</span></span>
+            </div>
+            <button onclick="submitKOT(this)" class="w-full py-4 mt-2 bg-slate-900 text-white rounded-xl text-sm font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-emerald-600 active:scale-95 transition-all flex justify-center items-center gap-2">
+                <i class="fa-solid fa-fire"></i> Send KOT To Kitchen
+            </button>
+        </div>
+    </div>
+
+    <div class="lg:hidden fixed bottom-20 left-0 w-full px-4 z-40 pointer-events-none transition-transform duration-300 transform translate-y-32" id="mobCartFloatBtn">
+        <button onclick="toggleMobileCart()" class="w-full bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center pointer-events-auto active:scale-95 transition-transform border border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center font-black text-sm" id="mobCartCountBtn">0</div>
+                <div class="text-left">
+                    <p class="text-sm font-black tracking-wide">View Draft KOT</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Est. ₹<span id="mobCartTotal">0</span></p>
+                </div>
+            </div>
+            <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-up text-sm"></i></div>
+        </button>
+    </div>
+
+    <div id="mobileCartModal" class="fixed inset-0 z-[120] hidden flex-col justify-end lg:hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0" id="mobCartBackdrop" onclick="toggleMobileCart()"></div>
+        
+        <div class="bg-white w-full h-[85vh] rounded-t-[2rem] shadow-2xl transform translate-y-full transition-transform duration-300 relative z-10 flex flex-col" id="mobCartContent">
+            
+            <div class="w-full flex justify-center pt-3 pb-1" onclick="toggleMobileCart()">
+                <div class="w-10 h-1.5 bg-slate-200 rounded-full"></div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800 tracking-tight">Draft KOT</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Table {{ selected_table|default:"Takeaway" }}</p>
+                </div>
+                <button class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-500" onclick="toggleMobileCart()">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50/50" id="mobileCartList">
+                </div>
+
+            <div class="p-5 bg-white border-t border-slate-200 shrink-0 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.02)] space-y-3">
+                <div class="flex justify-between items-end mb-3">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Est. Total (incl. Tax)</span>
+                    <span class="text-2xl font-black text-emerald-600 leading-none">₹<span id="mobFinalTotal">0</span></span>
+                </div>
+                <button onclick="submitKOT(this)" class="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> Send To Kitchen
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="modifierModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity opacity-0" id="modBackdrop" onclick="closeModifierModal()"></div>
+    <div class="bg-white w-full max-w-sm mx-auto rounded-[2rem] shadow-2xl transform scale-95 opacity-0 transition-all duration-300 relative z-10 p-6" id="modContent">
+        <div class="flex justify-between items-start mb-5 border-b border-slate-100 pb-4">
+            <div>
+                <h3 class="text-lg font-black text-slate-800 leading-tight">Kitchen Notes</h3>
+                <p class="text-xs font-bold text-emerald-600 mt-1" id="modItemName">Item Name</p>
+            </div>
+            <button onclick="closeModifierModal()" class="text-slate-400 hover:text-slate-600 bg-slate-50 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+        </div>
+        
+        <div class="space-y-2 mb-6" id="modifierOptions">
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mod-label">
+                <input type="checkbox" value="Less Spicy" class="w-4 h-4 accent-emerald-500 mod-checkbox"> <span class="font-bold text-sm text-slate-700">Less Spicy</span>
+            </label>
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mod-label">
+                <input type="checkbox" value="Jain (No Onion/Garlic)" class="w-4 h-4 accent-emerald-500 mod-checkbox"> <span class="font-bold text-sm text-slate-700">Jain (No Onion/Garlic)</span>
+            </label>
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mod-label">
+                <input type="checkbox" value="Extra Crispy" class="w-4 h-4 accent-emerald-500 mod-checkbox"> <span class="font-bold text-sm text-slate-700">Extra Crispy</span>
+            </label>
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mod-label">
+                <input type="checkbox" value="Make it 1/2 (Divide)" class="w-4 h-4 accent-emerald-500 mod-checkbox"> <span class="font-bold text-sm text-slate-700">Make it 1/2 (Divide)</span>
+            </label>
+        </div>
+
+        <button onclick="saveModifiers()" class="w-full py-4 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl hover:bg-emerald-600 transition-colors active:scale-95">Apply Notes</button>
+    </div>
+</div>
+
+<script>
+    // ----------------------------------------------------
+    // 1. DYNAMIC DATA & STATE
+    // ----------------------------------------------------
+    let menuData = {{ menu_items_json|safe }};
+    let currentCategory = 'All';
+    let cart = []; 
+    const currentTable = "{{ selected_table }}";
+
+    // ----------------------------------------------------
+    // 2. RENDER MENU GRID
+    // ----------------------------------------------------
+    function filterCategory(cat, btnElement) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-btn').forEach(b => {
+            b.classList.remove('text-slate-800', 'font-black', 'border-slate-800');
+            b.classList.add('text-slate-500', 'font-bold', 'border-transparent');
+        });
+        btnElement.classList.remove('text-slate-500', 'font-bold', 'border-transparent');
+        btnElement.classList.add('text-slate-800', 'font-black', 'border-slate-800');
+        renderMenu();
+    }
+
+    function renderMenu() {
+        const grid = document.getElementById('menuGrid');
+        const searchTxt = document.getElementById('searchInput').value.toLowerCase();
+        const vegOnly = document.getElementById('filterVeg').checked;
+        
+        let filtered = menuData;
+        if(currentCategory !== 'All') filtered = filtered.filter(i => i.cat === currentCategory);
+        if(vegOnly) filtered = filtered.filter(i => i.veg === true);
+        if(searchTxt) filtered = filtered.filter(i => i.name.toLowerCase().includes(searchTxt));
+
+        if(filtered.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold">No dishes found matching your criteria.</div>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(item => {
+            const icon = item.veg 
+                ? `<i class="fa-solid fa-square-caret-up text-emerald-500 bg-white p-1 rounded-md shadow-sm"></i>` 
+                : `<i class="fa-solid fa-square-caret-up text-red-500 bg-white p-1 rounded-md shadow-sm"></i>`;
+            
+            const imageHtml = item.image 
+                ? `<img src="${item.image}" class="w-full h-32 object-cover rounded-xl mb-3">`
+                : `<div class="w-full h-32 bg-slate-100 rounded-xl mb-3 flex items-center justify-center text-slate-300"><i class="fa-solid fa-utensils text-4xl opacity-50"></i></div>`;
+            
+            let badges = '';
+            if(item.bestseller) badges += `<span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded border border-amber-200 shadow-sm">Bestseller</span> `;
+            if(item.spicy) badges += `<span class="px-2 py-0.5 bg-red-100 text-red-700 text-[9px] font-black uppercase tracking-widest rounded border border-red-200 shadow-sm"><i class="fa-solid fa-fire text-[8px]"></i> Spicy</span>`;
+
+            return `
+            <div class="bg-white border border-slate-200 rounded-2xl p-3 flex flex-col hover:border-emerald-500 hover:shadow-lg transition-all group relative overflow-hidden">
+                <div class="relative">
+                    ${imageHtml}
+                    <div class="absolute top-2 right-2">${icon}</div>
+                    <div class="absolute bottom-5 left-2 flex gap-1.5">${badges}</div>
+                </div>
+                
+                <h4 class="text-sm font-black text-slate-800 leading-tight mb-2 pr-2">${item.name}</h4>
+                
+                <div class="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center">
+                    <span class="text-sm font-black text-slate-900 tracking-tight">₹${item.price}</span>
+                    <button onclick="addToCart(${item.id})" class="px-5 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-colors shadow-sm">ADD <i class="fa-solid fa-plus text-[10px] ml-1"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ----------------------------------------------------
+    // 3. CART LOGIC (Syncs Desktop & Mobile)
+    // ----------------------------------------------------
+    function addToCart(id) {
+        const item = menuData.find(x => x.id === id);
+        const existing = cart.find(x => x.item.id === id && x.notes.length === 0); 
+        
+        if(existing) existing.qty++; 
+        else cart.push({ item: item, qty: 1, notes: [] });
+        
+        showToast(`${item.name} added to Draft KOT`, 'success');
+        updateCartUI();
+    }
+
+    function updateQty(index, change) {
+        cart[index].qty += change;
+        if(cart[index].qty <= 0) cart.splice(index, 1);
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const deskCart = document.getElementById('desktopCartList');
+        const mobCart = document.getElementById('mobileCartList');
+        const floatBtn = document.getElementById('mobCartFloatBtn');
+        
+        let totalQty = 0;
+        let subtotal = 0;
+        
+        cart.forEach(c => {
+            totalQty += c.qty;
+            subtotal += (c.item.price * c.qty);
+        });
+
+        let tax = subtotal * 0.05;
+        let total = subtotal + tax;
+
+        // Update Desktop UI
+        document.getElementById('deskCartCount').innerText = totalQty;
+        document.getElementById('deskSubtotal').innerText = subtotal.toFixed(0);
+        document.getElementById('deskTotal').innerText = total.toFixed(0);
+
+        // Update Mobile UI
+        document.getElementById('mobCartCountBtn').innerText = totalQty;
+        document.getElementById('mobCartTotal').innerText = total.toFixed(0);
+        document.getElementById('mobFinalTotal').innerText = total.toFixed(0);
+        
+        if(totalQty > 0) floatBtn.classList.remove('translate-y-32'); 
+        else {
+            floatBtn.classList.add('translate-y-32');
+            if(mobileCartOpen) toggleMobileCart();
+        }
+
+        const emptyHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 pt-10">
+                <i class="fa-solid fa-receipt text-5xl mb-4 opacity-50"></i>
+                <p class="text-sm font-black uppercase tracking-widest">KOT is empty</p>
+                <p class="text-[10px] font-bold mt-1">Add dishes to start order</p>
+            </div>`;
+
+        const cartHTML = cart.length === 0 ? emptyHTML : cart.map((c, i) => {
+            const icon = c.item.veg ? `<i class="fa-solid fa-square-caret-up text-emerald-500"></i>` : `<i class="fa-solid fa-square-caret-up text-red-500"></i>`;
+            const notesHTML = c.notes.length > 0 
+                ? `<div class="mt-2 flex flex-wrap gap-1.5">${c.notes.map(n => `<span class="bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border border-amber-200">${n}</span>`).join('')}</div>`
+                : '';
+
+            return `
+            <div class="bg-white p-4 rounded-2xl mb-3 shadow-sm border border-slate-200">
+                <div class="flex justify-between items-start gap-2 mb-3">
+                    <div class="flex-1 pr-2">
+                        <h5 class="text-sm font-black text-slate-800 leading-tight flex items-center gap-1.5">${icon} ${c.item.name}</h5>
+                        <p class="text-[10px] text-slate-500 font-bold mt-1">₹${c.item.price} × ${c.qty}</p>
+                        ${notesHTML}
+                    </div>
+                    <div class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 shrink-0 shadow-inner">
+                        <button onclick="updateQty(${i}, -1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600 hover:text-red-500 active:scale-90 transition-all"><i class="fa-solid fa-minus text-xs"></i></button>
+                        <span class="w-8 text-center font-black text-slate-800 text-sm">${c.qty}</span>
+                        <button onclick="updateQty(${i}, 1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600 hover:text-emerald-500 active:scale-90 transition-all"><i class="fa-solid fa-plus text-xs"></i></button>
+                    </div>
+                </div>
+                <div class="border-t border-slate-100 pt-2 flex justify-between items-center mt-2">
+                    <button onclick="openModifierModal(${i})" class="text-[10px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest flex items-center gap-1.5 bg-indigo-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-pen"></i> Add Note</button>
+                    <span class="text-sm font-black text-slate-800">₹${c.item.price * c.qty}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        deskCart.innerHTML = cartHTML;
+        mobCart.innerHTML = cartHTML;
+    }
+
+    // ----------------------------------------------------
+    // 4. KITCHEN NOTES LOGIC (Modifiers)
+    // ----------------------------------------------------
+    let activeModifierIndex = null;
+    
+    function openModifierModal(cartIndex) {
+        activeModifierIndex = cartIndex;
+        document.getElementById('modItemName').innerText = cart[cartIndex].item.name;
+        
+        document.querySelectorAll('.mod-checkbox').forEach(cb => {
+            cb.checked = cart[cartIndex].notes.includes(cb.value);
+            if(cb.checked) cb.parentElement.classList.add('border-emerald-500', 'bg-emerald-50');
+            else cb.parentElement.classList.remove('border-emerald-500', 'bg-emerald-50');
+        });
+        
+        const modal = document.getElementById('modifierModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        setTimeout(() => {
+            document.getElementById('modBackdrop').classList.remove('opacity-0');
+            document.getElementById('modContent').classList.remove('scale-95', 'opacity-0');
+        }, 10);
+    }
+
+    function closeModifierModal() {
+        document.getElementById('modBackdrop').classList.add('opacity-0');
+        document.getElementById('modContent').classList.add('scale-95', 'opacity-0');
+        setTimeout(() => { document.getElementById('modifierModal').classList.add('hidden'); document.getElementById('modifierModal').classList.remove('flex'); }, 300);
+    }
+
+    // Checkbox styling update
+    document.querySelectorAll('.mod-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if(this.checked) this.parentElement.classList.add('border-emerald-500', 'bg-emerald-50');
+            else this.parentElement.classList.remove('border-emerald-500', 'bg-emerald-50');
+        });
+    });
+
+    function saveModifiers() {
+        const selected = [];
+        document.querySelectorAll('.mod-checkbox:checked').forEach(cb => selected.push(cb.value));
+        cart[activeModifierIndex].notes = selected;
+        updateCartUI();
+        closeModifierModal();
+    }
+
+    // ----------------------------------------------------
+    // 5. SUBMIT ORDER TO DJANGO
+    // ----------------------------------------------------
+    let mobileCartOpen = false;
+    function toggleMobileCart() {
+        const modal = document.getElementById('mobileCartModal');
+        const content = document.getElementById('mobCartContent');
+        const backdrop = document.getElementById('mobCartBackdrop');
+        if(!mobileCartOpen) {
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            requestAnimationFrame(() => { backdrop.classList.remove('opacity-0'); content.classList.remove('translate-y-full'); });
+            mobileCartOpen = true;
+        } else {
+            backdrop.classList.add('opacity-0'); content.classList.add('translate-y-full');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+            mobileCartOpen = false;
+        }
+    }
+
+    function submitKOT(btnElement) {
+        if(!currentTable || currentTable === "Takeaway") {
+            alert("⚠️ Please go back and select a Table from the Floor Map first!");
+            return;
+        }
+        if(cart.length === 0) return alert("🛒 Cart is empty. Please add items.");
+        
+        // Prepare Data for Django
+        let cartData = cart.map(c => ({ 
+            name: c.item.name, 
+            qty: c.qty, 
+            price: c.item.price, 
+            notes: c.notes 
+        }));
+        
+        // UI Loading State
+        const originalText = btnElement.innerHTML;
+        btnElement.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending KOT...`;
+        btnElement.classList.add('opacity-80', 'pointer-events-none');
+
+        // Fetch API
+        fetch("{% url 'waiter_punch_order' %}", {
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json", 
+                "X-CSRFToken": "{{ csrf_token }}" 
+            },
+            body: JSON.stringify({ table: currentTable, cart: cartData })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                showToast("✅ KOT Sent to Kitchen!", "success");
+                // Redirect to running orders after 1 second
+                setTimeout(() => {
+                    window.location.href = "{% url 'waiter_running_orders' %}?table=" + currentTable;
+                }, 1000);
+            } else {
+                alert("Error: " + data.message);
+                btnElement.innerHTML = originalText;
+                btnElement.classList.remove('opacity-80', 'pointer-events-none');
+            }
+        })
+        .catch(err => {
+            alert("❌ Network Error! Please check your connection.");
+            btnElement.innerHTML = originalText;
+            btnElement.classList.remove('opacity-80', 'pointer-events-none');
+        });
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transform translate-y-[-20px] opacity-0 transition-all duration-300 z-[300]`;
+        toast.innerHTML = `<i class="fa-solid fa-check-circle text-emerald-400 text-lg"></i><p class="text-xs font-black tracking-widest uppercase">${message}</p>`;
+        document.getElementById('toastContainer').appendChild(toast);
+        requestAnimationFrame(() => toast.classList.remove('translate-y-[-20px]', 'opacity-0'));
+        setTimeout(() => { toast.classList.add('translate-y-[-20px]', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 2500);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', renderMenu);
+</script>
+{% endblock %}

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>KDS | Rajkot Rasoi</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+font-family:Inter;
+background:#f3f4f6;
+}
+
+/* HEADER */
+
+.header{
+background:#111827;
+color:white;
+}
+
+/* station buttons */
+
+.station-btn{
+padding:8px 16px;
+border-radius:8px;
+font-weight:600;
+background:#374151;
+color:white;
+}
+
+.station-btn.active{
+background:white;
+color:black;
+}
+
+/* order card */
+
+.order-card{
+
+background:white;
+
+border-radius:16px;
+
+padding:20px;
+
+box-shadow:0 4px 18px rgba(0,0,0,0.05);
+
+display:flex;
+
+flex-direction:column;
+
+}
+
+/* qty */
+
+.qty{
+
+font-size:42px;
+
+font-weight:900;
+
+}
+
+/* timer */
+
+.timer{
+
+font-weight:800;
+
+font-size:20px;
+
+}
+
+.timer.normal{
+color:#0284c7;
+}
+
+.timer.late{
+color:#ef4444;
+}
+
+/* tags */
+
+.tag{
+
+background:#f3f4f6;
+
+padding:4px 8px;
+
+border-radius:6px;
+
+font-size:12px;
+
+}
+
+.station-tag{
+
+background:#dbeafe;
+
+color:#1d4ed8;
+
+padding:4px 8px;
+
+border-radius:6px;
+
+font-size:12px;
+
+}
+
+/* ready button */
+
+.ready{
+
+margin-top:18px;
+
+background:#111827;
+
+color:white;
+
+padding:12px;
+
+border-radius:10px;
+
+font-weight:700;
+
+}
+
+.ready:hover{
+
+background:#16a34a;
+
+}
+
+</style>
+
+</head>
+
+<body class="h-screen flex flex-col">
+
+<header class="header px-8 py-5 flex justify-between items-center">
+
+<div>
+
+<h1 class="font-bold text-xl">Rajkot Rasoi</h1>
+
+<p class="text-xs opacity-70">Kitchen Display System</p>
+
+</div>
+
+
+<div id="stationNav" class="flex gap-2">
+
+<button onclick="filterS('All',this)" class="station-btn active">All</button>
+<button onclick="filterS('Punjabi',this)" class="station-btn">Punjabi</button>
+<button onclick="filterS('Gujarati',this)" class="station-btn">Gujarati</button>
+<button onclick="filterS('Chinese',this)" class="station-btn">Chinese</button>
+
+</div>
+
+
+<div id="clock" class="font-semibold"></div>
+
+</header>
+
+
+<main class="flex-1 overflow-y-auto p-6">
+
+<div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6"></div>
+
+</main>
+
+
+<audio id="ping" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+
+<script>
+
+let currentS = "All"
+
+let lastLen = 0
+
+
+function filterS(s,btn){
+
+currentS = s
+
+document.querySelectorAll(".station-btn").forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
+sync()
+
+}
+
+
+
+function sync(){
+
+fetch("/api/kds-updates/")
+
+.then(r=>r.json())
+
+.then(data=>{
+
+let items = data.items
+
+if(currentS!="All"){
+
+items = items.filter(i=>i.station==currentS)
+
+}
+
+
+if(data.items.length>lastLen){
+
+document.getElementById("ping").play().catch(e=>{})
+
+}
+
+lastLen=data.items.length
+
+
+const grid = document.getElementById("grid")
+
+
+if(items.length==0){
+
+grid.innerHTML=`
+
+<div class="col-span-full h-96 flex items-center justify-center text-gray-400">
+
+<h2 class="text-2xl font-bold">No Active Orders</h2>
+
+</div>
+
+`
+
+return
+
+}
+
+
+grid.innerHTML = items.map(i=>{
+
+const mins = Math.floor((i.elapsed_secs || 0)/60)
+
+const late = mins>=10
+
+const table = i.table === "Takeaway" ? "Takeaway" : "T"+i.table
+
+return `
+
+<div class="order-card">
+
+<div class="flex justify-between items-center">
+
+<div class="text-xs text-gray-400">
+
+TABLE
+
+</div>
+
+<div class="timer ${late?'late':'normal'}">
+
+${mins}m
+
+</div>
+
+</div>
+
+
+<div class="text-2xl font-black mt-1">
+
+${table}
+
+</div>
+
+
+<div class="flex items-center gap-5 mt-5">
+
+<div class="qty">
+
+${i.qty}
+
+</div>
+
+<div>
+
+<div class="font-bold text-lg">
+
+${i.name}
+
+</div>
+
+<div class="text-gray-400 text-sm">
+
+${i.variant || ""}
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="flex gap-2 mt-4">
+
+<span class="tag">
+
+${i.spice}
+
+</span>
+
+<span class="station-tag">
+
+${i.station}
+
+</span>
+
+</div>
+
+
+${i.note ? `
+
+<div class="mt-3 text-sm bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded">
+
+${i.note}
+
+</div>
+
+` : ""}
+
+
+<button onclick="done(${i.id})" class="ready">
+
+READY
+
+</button>
+
+
+</div>
+
+`
+
+}).join("")
+
+})
+
+}
+
+
+
+function done(id){
+
+const fd = new FormData()
+
+fd.append("item_id",id)
+
+fd.append("new_status","Ready")
+
+fetch("{% url 'kds_screen' %}",{
+
+method:"POST",
+
+body:fd,
+
+headers:{'X-CSRFToken':'{{ csrf_token }}'}
+
+})
+
+.then(()=>sync())
+
+}
+
+
+
+setInterval(()=>{
+
+document.getElementById("clock").innerText = new Date().toLocaleTimeString()
+
+},1000)
+
+
+
+setInterval(sync,5000)
+
+sync()
+
+</script>
+
+</body>
+
+</html>
